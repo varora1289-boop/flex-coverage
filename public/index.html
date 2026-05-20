@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>indeed flex — coverage analysis</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#1a0533;--navy2:#230845;--blue:#5b21b6;--blue2:#7c3aed;
+  --pink:#e8175d;--pink2:#ff2d78;--purple:#6d28d9;--purple2:#8b5cf6;
+  --g50:#fdf4ff;--g100:#f3e8ff;--g400:#a78bfa;--g600:#7c3aed;
+  --in:#00C875;--adj:#4B8EF5;--exp:#B57BFF;--out:#FF9F43;--nc:#FF6B6B;--seg:#00C4B4;
+  --r:10px;--r2:14px
+}
+html,body{background:var(--navy);color:#fff;font-family:'Space Grotesk',system-ui,sans-serif;min-height:100vh;line-height:1.5}
+
+#hdr{background:linear-gradient(135deg,#3b0764 0%,#1e1b4b 50%,#0f172a 100%);backdrop-filter:blur(10px);border-bottom:1px solid rgba(232,23,93,.25);padding:0 32px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 2px 20px rgba(232,23,93,.15)}
+.logo{display:flex;align-items:center;gap:12px;text-decoration:none}
+.logomark{width:36px;height:36px;background:linear-gradient(135deg,var(--pink),var(--purple2));border-radius:8px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px rgba(232,23,93,.4)}
+.logomark span{color:#fff;font-weight:700;font-size:15px;letter-spacing:-.5px;font-style:italic}
+.logoname{color:#fff;font-weight:700;font-size:16px;letter-spacing:-.3px}
+.logoname em{color:var(--pink2);font-style:italic;font-weight:800}
+.logosub{color:rgba(168,139,250,.8);font-size:9px;letter-spacing:.18em;text-transform:uppercase;font-weight:600;margin-top:1px}
+.hdr-btns{display:flex;gap:8px}
+.btn-ghost{background:rgba(232,23,93,.12);border:1px solid rgba(232,23,93,.3);color:rgba(255,255,255,.85);border-radius:7px;padding:6px 15px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;gap:6px}
+.btn-ghost:hover{background:rgba(232,23,93,.22);color:#fff;border-color:var(--pink)}
+.hbadge{background:var(--pink);color:#fff;border-radius:20px;padding:1px 8px;font-size:10px;font-weight:700}
+
+#wrap{max-width:1020px;margin:0 auto;padding:28px 24px;display:grid;grid-template-columns:1fr;gap:20px}
+#wrap.ws{grid-template-columns:1fr 260px}
+
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:var(--r2)}
+
+.intake-hero{background:linear-gradient(135deg,#3b0764 0%,#4c1d95 40%,#1e1b4b 100%);padding:28px 30px;border-radius:var(--r2) var(--r2) 0 0;position:relative;overflow:hidden}
+.intake-hero::before{content:'';position:absolute;right:-30px;top:-30px;width:200px;height:200px;border-radius:50%;background:var(--pink);opacity:.1;pointer-events:none}
+.intake-hero::after{content:'';position:absolute;left:40%;bottom:-40px;width:140px;height:140px;border-radius:50%;background:var(--purple2);opacity:.08;pointer-events:none}
+.intake-hero h1{font-size:22px;font-weight:700;letter-spacing:-.4px;position:relative}
+.intake-hero h1 span{color:var(--pink2)}
+.intake-hero p{font-size:13px;color:rgba(255,255,255,.55);margin-top:5px;position:relative}
+.intake-body{padding:26px 30px;display:flex;flex-direction:column;gap:20px}
+
+.sec-head{font-size:9px;font-weight:700;color:var(--pink);letter-spacing:.16em;text-transform:uppercase;margin-bottom:13px;display:flex;align-items:center;gap:10px}
+.sec-head::after{content:'';flex:1;height:1px;background:rgba(232,23,93,.15)}
+.fg{display:grid;gap:13px}
+.fg2{grid-template-columns:1fr 1fr}
+.fg3{grid-template-columns:1fr 1fr 1fr}
+.field label{display:block;font-size:10px;font-weight:600;color:rgba(255,255,255,.4);letter-spacing:.07em;text-transform:uppercase;margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:9px 12px;font-size:13px;color:#fff;font-family:inherit;outline:none;transition:border-color .15s}
+.field input:focus,.field textarea:focus{border-color:var(--pink);background:rgba(232,23,93,.06)}
+.field select{cursor:pointer}.field select option{background:#1a0533}
+.pfx{position:relative}.pfx span{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.3);font-size:13px;pointer-events:none}
+.pfx input{padding-left:22px}
+textarea.locs{resize:vertical;min-height:130px;font-size:12px;line-height:1.7;font-family:monospace}
+textarea.locs::placeholder{color:rgba(255,255,255,.18)}
+.paste-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+.paste-bar span{font-size:11px;color:rgba(255,255,255,.3)}
+.lbtn{background:none;border:none;color:var(--pink);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+.run-row{display:flex;align-items:center;gap:12px;margin-top:6px}
+.btn-run{background:linear-gradient(135deg,var(--pink),var(--purple));color:#fff;border:none;border-radius:8px;padding:12px 28px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:.01em;white-space:nowrap;box-shadow:0 4px 15px rgba(232,23,93,.3)}
+.btn-run:hover{background:linear-gradient(135deg,var(--pink2),var(--purple2));box-shadow:0 6px 20px rgba(232,23,93,.4);transform:translateY(-1px)}
+.btn-run:disabled{background:rgba(255,255,255,.07);color:rgba(255,255,255,.2);cursor:not-allowed;box-shadow:none;transform:none}
+.pgbar{flex:1;background:rgba(255,255,255,.05);border-radius:3px;height:4px;overflow:hidden;display:none}
+.pgfill{height:100%;background:linear-gradient(90deg,var(--pink),var(--purple));width:0%;transition:width .3s;border-radius:3px}
+.pgtxt{font-size:11px;color:rgba(255,255,255,.35);white-space:nowrap;display:none}
+.errmsg{font-size:12px;color:#FF6B6B;background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.25);border-radius:7px;padding:8px 12px;display:none;margin-top:8px}
+
+#loading{display:none;text-align:center;padding:60px 40px}
+.spin{width:42px;height:42px;border:3px solid rgba(255,255,255,.07);border-top-color:var(--pink);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading h3{font-size:16px;font-weight:700}
+#loading p{font-size:12px;color:rgba(255,255,255,.35);margin-top:4px}
+#lpbar{max-width:240px;margin:16px auto 0;background:rgba(255,255,255,.05);border-radius:3px;height:3px}
+#lpfill{height:100%;background:linear-gradient(90deg,var(--pink),var(--purple));width:0%;transition:width .3s;border-radius:3px}
+
+#results{display:none}
+.cbar{background:rgba(232,23,93,.06);border:1px solid rgba(232,23,93,.15);border-radius:10px;padding:13px 18px;display:flex;gap:24px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.ci .cl{font-size:9px;font-weight:700;color:rgba(255,255,255,.3);letter-spacing:.12em;text-transform:uppercase}
+.ci .cv{font-size:14px;font-weight:700;margin-top:1px}
+.ci .cv.s{font-size:13px;font-weight:600}
+.stag{background:rgba(232,23,93,.15);color:var(--pink2);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700}
+
+.scores{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:15px}
+.sc{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:15px 16px;position:relative;overflow:hidden;transition:transform .15s,border-color .15s;cursor:default}
+.sc:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.14)}
+.sc-l{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:9px}
+.sc-n{font-size:36px;font-weight:700;line-height:1;letter-spacing:-1.5px}
+.sc-p{font-size:12px;font-weight:600;color:rgba(255,255,255,.35);margin-top:3px}
+.sc-m{font-size:10px;color:rgba(255,255,255,.22);margin-top:6px;font-weight:500}
+
+.tabbar{display:flex;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-bottom:none;border-radius:10px 10px 0 0;padding:0 4px}
+.tabt{background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;padding:13px 17px;font-size:13px;font-weight:600;color:rgba(255,255,255,.35);cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.tabt:hover{color:rgba(255,255,255,.7)}
+.tabt.on{color:var(--pink2);border-bottom-color:var(--pink)}
+.tabbody{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-top:none;border-radius:0 0 10px 10px;padding:22px}
+
+#mapEl{height:420px;border-radius:8px;overflow:hidden}
+.mleg{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.05)}
+.mli{display:flex;align-items:center;gap:5px;font-size:11px;color:rgba(255,255,255,.4);font-weight:500}
+
+.ldot{width:9px;height:9px;border-radius:50%}
+
+.twrap{overflow-x:auto;border-radius:8px;border:1px solid rgba(255,255,255,.07)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;padding:10px 13px;color:rgba(255,255,255,.28);font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02)}
+td{padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.04);color:rgba(255,255,255,.65)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.03)}
+.tbadge{display:inline-block;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;border:1px solid}
+.tacts{margin-top:14px;display:flex;justify-content:flex-end}
+.btn-s{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.6);border-radius:7px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-s:hover{background:rgba(255,255,255,.1);color:#fff}
+.btn-s.ok{background:rgba(0,200,117,.12);border-color:rgba(0,200,117,.3);color:var(--in)}
+
+.bkg{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.bkp{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:18px}
+.bkh{font-size:9px;font-weight:700;color:rgba(255,255,255,.28);letter-spacing:.1em;text-transform:uppercase;margin-bottom:15px}
+.drow{display:flex;align-items:center;gap:18px}
+.dkeys{flex:1;display:flex;flex-direction:column;gap:9px}
+.dkr{display:flex;align-items:center;gap:7px}
+.dkd{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.dkn{font-size:12px;color:rgba(255,255,255,.55);flex:1;font-weight:500}
+.dkv{font-size:13px;font-weight:700}
+.dkp{font-size:10px;color:rgba(255,255,255,.28);margin-left:3px}
+.svcc{margin-top:15px;padding-top:15px;border-top:1px solid rgba(255,255,255,.05)}
+.svcl{font-size:9px;font-weight:700;color:rgba(255,255,255,.28);letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}
+.svcn{font-size:28px;font-weight:700;color:var(--pink2)}
+.svcs{font-size:11px;color:rgba(255,255,255,.3);margin-top:2px}
+.bar{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.bl{font-size:11px;color:rgba(255,255,255,.5);width:95px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.bt{flex:1;background:rgba(255,255,255,.05);border-radius:3px;height:7px;overflow:hidden}
+.bf{height:100%;border-radius:3px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.bn{font-size:12px;font-weight:700;color:rgba(255,255,255,.5);min-width:20px;text-align:right}
+
+.slkt{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.slkt span{font-size:12px;color:rgba(255,255,255,.3)}
+.slkb{display:flex;gap:8px}
+pre.slkpre{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:18px;font-size:12px;line-height:1.85;color:rgba(255,255,255,.6);white-space:pre-wrap;word-break:break-word;font-family:'Space Grotesk',sans-serif}
+
+#sidebar{display:none}
+.si{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:var(--r2);padding:16px;position:sticky;top:80px}
+.sith{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.sith span{font-size:9px;font-weight:700;color:var(--pink);letter-spacing:.14em;text-transform:uppercase}
+.sith button{background:none;border:none;font-size:11px;color:rgba(255,255,255,.22);cursor:pointer;font-family:inherit}
+.sempty{font-size:12px;color:rgba(255,255,255,.18);text-align:center;padding:18px 0}
+.slist{display:flex;flex-direction:column;gap:7px;max-height:510px;overflow-y:auto}
+.sit{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:11px;cursor:pointer;transition:all .15s;position:relative}
+.sit:hover{border-color:rgba(232,23,93,.35);background:rgba(232,23,93,.06)}
+.sitn{font-size:12px;font-weight:700;padding-right:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sitm{font-size:10px;color:rgba(255,255,255,.28);margin:2px 0 7px}
+.sittags{display:flex;gap:4px;flex-wrap:wrap}
+.sittag{font-size:10px;font-weight:700;border-radius:10px;padding:2px 7px;border:1px solid}
+.sitd{position:absolute;top:7px;right:7px;background:none;border:none;color:rgba(255,255,255,.18);cursor:pointer;font-size:15px;line-height:1;padding:2px;transition:color .15s}
+.sitd:hover{color:rgba(255,255,255,.45)}
+
+@media(max-width:680px){.fg2,.fg3,.scores,.bkg{grid-template-columns:1fr}#wrap.ws{grid-template-columns:1fr}#sidebar{display:none!important}.intake-hero,.intake-body{padding:20px}}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <div class="logo">
+    <div class="logomark"><span>if</span></div>
+    <div>
+      <div class="logoname"><em>indeed</em> flex</div>
+      <div class="logosub">Coverage Analysis</div>
+    </div>
+  </div>
+  <div class="hdr-btns">
+    <button class="btn-ghost" id="backBtn" onclick="goIntake()" style="display:none">← New analysis</button>
+    <button class="btn-ghost" id="histBtn" onclick="toggleSide()">
+      History <span class="hbadge" id="hcnt" style="display:none">0</span>
+    </button>
+  </div>
+</div>
+
+<div id="wrap">
+  <div id="mc">
+
+    <div id="intake" class="card">
+      <div class="intake-hero">
+        <h1>Coverage <span>Analysis</span> Request</h1>
+        <p>Paste locations + spend in any format — CSV, Excel copy, city / state / ZIP / spend</p>
+      </div>
+      <div class="intake-body">
+        <div>
+          <div class="sec-head">Request details</div>
+          <div class="fg fg2">
+            <div class="field"><label>Requested by (Slack)</label><div class="pfx"><span>@</span><input id="req" placeholder="slack.handle"/></div></div>
+            <div class="field"><label>Client name</label><input id="cn" placeholder="e.g. Piedmont Plastics"/></div>
+          </div>
+        </div>
+        <div class="fg fg3">
+          <div class="field"><label>Target go-live</label><input id="gl" type="date"/></div>
+          <div class="field"><label>Client status</label>
+            <select id="cs"><option value="">Select…</option><option>Prospect</option><option>Active negotiation</option><option>Contract sent</option><option>Signed</option><option>Onboarding</option><option>Live</option></select>
+          </div>
+          <div class="field"><label>Labor &amp; financial data</label><input id="lf" placeholder="Paste file link"/></div>
+        </div>
+        <div>
+          <div class="sec-head">Client locations</div>
+          <div class="paste-bar">
+            <span>Any format: CSV, Excel paste, city/state/ZIP — add a spend column and it auto-detects</span>
+            <button class="lbtn" onclick="loadSample()">Load sample →</button>
+          </div>
+          <div class="field"><textarea id="raw" class="locs" rows="9" placeholder="CITY&#9;STATE&#9;ZIP&#9;SPEND&#10;ATLANTA&#9;GA&#9;30303&#9;$2,000&#10;CHARLOTTE&#9;NC&#9;28202&#9;$1,500&#10;&#10;— spend column is optional —&#10;NAPERVILLE&#9;IL&#9;60540&#10;HOUSTON&#9;TX&#9;77429"></textarea></div>
+          <div id="err" class="errmsg"></div>
+          <div class="run-row">
+            <button class="btn-run" onclick="doRun()">Run analysis →</button>
+            <div class="pgbar" id="pgbar"><div class="pgfill" id="pgfill"></div></div>
+            <span class="pgtxt" id="pgtxt"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="loading" class="card">
+      <div class="spin"></div>
+      <h3 id="ltxt">Analyzing locations…</h3>
+      <p>Geocoding addresses and mapping to coverage territories</p>
+      <div id="lpbar"><div id="lpfill"></div></div>
+    </div>
+
+    <div id="results">
+      <div class="cbar" id="cbar"></div>
+      <div class="scores" id="scs"></div>
+      <div class="tabbar">
+        <button class="tabt on" id="tab-map" onclick="sw('map')">◎ Map</button>
+        <button class="tabt" id="tab-table" onclick="sw('table')">≡ Locations</button>
+        <button class="tabt" id="tab-breakdown" onclick="sw('breakdown')">◕ Breakdown</button>
+        <button class="tabt" id="tab-slack" onclick="sw('slack')"># Slack</button>
+      </div>
+      <div class="tabbody">
+        <div id="pane-map"></div>
+        <div id="pane-table" style="display:none"></div>
+        <div id="pane-breakdown" style="display:none"></div>
+        <div id="pane-slack" style="display:none"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="sidebar">
+    <div class="si">
+      <div class="sith"><span>History</span><button onclick="clrHist()">clear all</button></div>
+      <div id="slist"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+let ZM={};
+let OOC_STATES=new Set(["AZ","CT","DC","DE","FL","GA","IL","KY","NC","NJ","NV","OH","PA","TN","TX"]);
+let dataLoaded=false;
+
+async function loadData(){
+  try{
+    const resp=await fetch("/api/territories");
+    if(resp.ok){
+      const d=await resp.json();
+      ZM=d.territories||{};
+      OOC_STATES=new Set(d.compliantStates||[]);
+      dataLoaded=true;
+      console.log("Loaded",Object.keys(ZM).length,"territories,",OOC_STATES.size,"compliant states from server");
+      return;
+    }
+  }catch(_){}
+  // Fallback: load from hardcoded if API not available (standalone mode)
+  console.log("API not available, using built-in data");
+  dataLoaded=true;
+}
+loadData();
+
+function classify(lat,lon,zip,state){
+  const nz=String(zip||"").replace(/\D/g,"").padStart(5,"0");
+  if(nz.length===5&&ZM[nz]){
+    const{market:m,type:t}=ZM[nz];
+    if(t==="core") return{tier:"Core Market",market:m};
+    if(t==="adj") return{tier:"Adjacent Market",market:m};
+    if(t==="exp") return{tier:"Expansion Market",market:m};
+    if(t==="seg") return{tier:"Segmented Market",market:m};
+  }
+  // ZIP not in any territory list — use state-based fallback
+  const st=(state||"").toUpperCase().trim();
+  if(st&&OOC_STATES.has(st)) return{tier:"Out of Coverage",market:null};
+  return{tier:"Non-compliant",market:null};
+}
+
+const STA=new Set(["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC"]);
+const HR=/^(address|city|state|zip|postal|name|location|street|full|site|store|branch|spend|revenue|amount|budget|volume|annualspend|tempspend|totalspend)$/i;
+function isH(p){return p.some(x=>HR.test(x.trim().replace(/[^a-z]/gi,"")))}
+function eZip(s){const m=String(s).match(/\b(\d{5})(?:-\d{4})?\b/g);return m?m[m.length-1].slice(0,5):""}
+function pMoney(s){if(!s)return 0;const n=parseFloat(String(s).replace(/[$,\s]/g,""));return isNaN(n)?0:n;}
+function smartParse(raw){
+  const t=raw.trim();if(!t)return[];
+  const ls=t.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const sep=ls[0].includes("\t")?"\t":ls[0].includes(",")?",":null;
+  if(sep){
+    const all=ls.map(l=>l.split(sep).map(c=>c.trim().replace(/^"|"$/g,"")));
+    const hi=isH(all[0]);const data=hi?all.slice(1):all;
+    const hs=hi?all[0].map(h=>h.toLowerCase().replace(/[^a-z0-9]/g,"")):null;
+    return data.filter(r=>r.some(c=>c.trim())).map(vals=>{
+      if(hs){const row={};hs.forEach((h,i)=>row[h]=vals[i]||"");const zip=row.zip||row.zipcode||row.postalcode||eZip(vals.join(" "));const city=row.city||"";const st=row.state||row.statecode||row.st||"";const addr=row.fulladdress||row.address||row.street||row.location||"";const spRaw=row.spend||row.revenue||row.amount||row.budget||row.volume||row.annualspend||row.tempspend||row.totalspend||"";return{addr:addr||[city,st,zip].filter(Boolean).join(" "),zip,state:st,spend:pMoney(spRaw)};}
+      const z5=vals.find(v=>/^\d{5}$/.test(v.trim()))||"";const stv=vals.find(v=>STA.has(v.trim().toUpperCase()))||"";const spv=vals.find(v=>/^\$?[\d,]+\.?\d*$/.test(v.trim().replace(/^\$/,""))&&v.trim()!==z5)||"";const zip=z5||eZip(vals.join(" "));const city=vals.filter(v=>v!==z5&&v!==stv&&v!==spv).join(" ").trim();
+      return{addr:[city,stv,z5].filter(Boolean).join(" ")||vals.join(" "),zip,state:stv,spend:pMoney(spv)};
+    });
+  }
+  if(ls.some(l=>/\d{5}/.test(l)||STA.has(l.trim().toUpperCase())))return ls.map(l=>{const st=(l.match(new RegExp("\\b("+[...STA].join("|")+")\\b","i"))||[])[1]||"";const sp=(l.match(/\$[\d,]+\.?\d*/)||[])[0]||"";return{addr:l.replace(/\$[\d,]+\.?\d*/,"").trim(),zip:eZip(l),state:st,spend:pMoney(sp)};});
+  const up=t.toUpperCase().replace(/\s+/g,"");const anc=[];const re=/([A-Z]{2})(\d{5})/g;let m;
+  while((m=re.exec(up))!==null)if(STA.has(m[1]))anc.push({i:m.index,s:m[1],z:m[2],e:m.index+m[0].length});
+  if(anc.length)return anc.map((a,i)=>{const prev=i===0?0:anc[i-1].e;const city=up.slice(prev,a.i).replace(/[^A-Z]/g,"").slice(-20);return{addr:`${city} ${a.s} ${a.z}`.trim(),zip:a.z,state:a.s,spend:0};});
+  return[{addr:t,zip:eZip(t),state:"",spend:0}];
+}
+async function geocode(a){try{const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(a)}&format=json&limit=1&countrycodes=us`,{headers:{"Accept-Language":"en"}});const d=await r.json();if(d.length)return{lat:+d[0].lat,lon:+d[0].lon};}catch(_){}return null;}
+
+const TC={
+  "Core Market":      {hex:"#00C875",bg:"rgba(0,200,117,.12)",bd:"rgba(0,200,117,.28)",   label:"Core Market",      model:"Flex Workers — full recruitment SLA"},
+  "Adjacent Market":  {hex:"#4B8EF5",bg:"rgba(75,142,245,.12)",bd:"rgba(75,142,245,.28)", label:"Adjacent Market",   model:"Existing Flexers + Agency, MSP only"},
+  "Segmented Market": {hex:"#00C4B4",bg:"rgba(0,196,180,.12)", bd:"rgba(0,196,180,.28)",  label:"Segmented Market",  model:"Flex + Agency, targeted single client"},
+  "Expansion Market": {hex:"#B57BFF",bg:"rgba(181,123,255,.12)",bd:"rgba(181,123,255,.28)",label:"Expansion Market",  model:"Flex + Agency, MSP clients only"},
+  "Out of Coverage":  {hex:"#FF9F43",bg:"rgba(255,159,67,.12)", bd:"rgba(255,159,67,.28)", label:"Out of Coverage",   model:"Agency only, no demand push"},
+  "Non-compliant":    {hex:"#FF6B6B",bg:"rgba(255,107,107,.12)",bd:"rgba(255,107,107,.28)",label:"Non-compliant",     model:"Requires State + Local Compliance sign-off"},
+};
+const SLBL=["Core Market","Adjacent Market","Segmented Market","Expansion Market","Out of Coverage","Non-compliant"];
+const SMOD=["Full Flex","Flexers + Agency","Targeted Flex + Agency","Flex + Agency (MSP)","Agency only","Compliance required"];
+const SHEX=["#00C875","#4B8EF5","#00C4B4","#B57BFF","#FF9F43","#FF6B6B"];
+
+let results=[],form={},sideOpen=false,leafMap=null;
+const SK="if_cov_v4";
+let saved=JSON.parse(localStorage.getItem(SK)||"[]");
+
+function cntR(r){return{core:r.filter(x=>x.tier==="Core Market").length,adjacent:r.filter(x=>x.tier==="Adjacent Market").length,segmented:r.filter(x=>x.tier==="Segmented Market").length,expansion:r.filter(x=>x.tier==="Expansion Market").length,outOf:r.filter(x=>x.tier==="Out of Coverage").length,nonComp:r.filter(x=>x.tier==="Non-compliant").length};}
+function saveH(e){saved=[e,...saved].slice(0,50);localStorage.setItem(SK,JSON.stringify(saved));rdrSide();updB();}
+function updB(){const b=document.getElementById("hcnt");b.textContent=saved.length;b.style.display=saved.length?"":"none";}
+function toggleSide(){sideOpen=!sideOpen;document.getElementById("sidebar").style.display=sideOpen?"block":"none";document.getElementById("wrap").className=sideOpen?"ws":"";}
+function clrHist(){saved=[];localStorage.setItem(SK,"[]");rdrSide();updB();}
+
+async function doRun(){
+  const raw=document.getElementById("raw").value.trim();
+  if(!raw){showErr("Paste some locations first.");return;}
+  const rows=smartParse(raw);
+  if(!rows.length){showErr("No locations found.");return;}
+  form={requester:document.getElementById("req").value.trim(),clientName:document.getElementById("cn").value.trim()||"Unnamed client",goLive:document.getElementById("gl").value,clientStatus:document.getElementById("cs").value};
+  hideErr();
+  document.getElementById("intake").style.display="none";
+  document.getElementById("loading").style.display="block";
+  document.getElementById("backBtn").style.display="flex";
+  const out=[];
+  for(let i=0;i<rows.length;i++){
+    const{addr,zip,state:st,spend:sp}=rows[i];const nz=String(zip||"").replace(/\D/g,"").padStart(5,"0");
+    let geo=null;try{geo=await geocode(`${addr||nz}, USA`);}catch(_){}
+    const cl=classify(geo?.lat,geo?.lon,nz,st||"");
+    out.push({addr,zip:nz,lat:geo?.lat,lon:geo?.lon,spend:sp||0,...cl});
+    const pct=Math.round((i+1)/rows.length*100);
+    document.getElementById("lpfill").style.width=pct+"%";
+    document.getElementById("ltxt").textContent=`Analyzing ${i+1} of ${rows.length}…`;
+    await new Promise(r=>setTimeout(r,280));
+  }
+  results=out;showRes();
+  const c=cntR(out);const totSpend=out.reduce((s,r)=>s+r.spend,0);
+  const logEntry={id:Date.now(),clientName:form.clientName,requester:form.requester,goLive:form.goLive,clientStatus:form.clientStatus,date:new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}),results:out,total:out.length,core:c.core,adjacent:c.adjacent,segmented:c.segmented,expansion:c.expansion,outOf:c.outOf,nonComp:c.nonComp,totalSpend:totSpend};
+  saveH(logEntry);
+  try{fetch("/api/log",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(logEntry)}).catch(()=>{});}catch(_){}
+}
+
+function showRes(){document.getElementById("loading").style.display="none";document.getElementById("results").style.display="block";rdrBar();rdrScores();sw("map");}
+
+function rdrBar(){const{clientName,requester,goLive,clientStatus}=form;let h=`<div class="ci"><div class="cl">Client</div><div class="cv">${clientName}</div></div>`;if(requester)h+=`<div class="ci"><div class="cl">Requested by</div><div class="cv s">@${requester}</div></div>`;if(goLive)h+=`<div class="ci"><div class="cl">Go-live target</div><div class="cv s">${goLive}</div></div>`;if(clientStatus)h+=`<div class="ci"><div class="cl">Status</div><div class="cv s"><span class="stag">${clientStatus}</span></div></div>`;document.getElementById("cbar").innerHTML=h;}
+
+function rdrScores(){const c=cntR(results);const tot=results.length;const vals=[c.core,c.adjacent,c.segmented,c.expansion,c.outOf,c.nonComp];document.getElementById("scs").innerHTML=vals.map((n,i)=>`<div class="sc" style="border-top:3px solid ${SHEX[i]}"><div class="sc-l" style="color:${SHEX[i]}">${SLBL[i]}</div><div class="sc-n" style="color:${SHEX[i]}">${n}</div><div class="sc-p">${tot?Math.round(n/tot*100):0}%</div><div class="sc-m">${SMOD[i]}</div></div>`).join("");}
+
+function sw(t){["map","table","breakdown","slack"].forEach(id=>{document.getElementById("tab-"+id).className="tabt"+(id===t?" on":"");document.getElementById("pane-"+id).style.display=id===t?"block":"none";});if(t==="map")rdrMap();else if(t==="table")rdrTable();else if(t==="breakdown")rdrBk();else rdrSlack();}
+
+function rdrMap(){
+  const p=document.getElementById("pane-map");
+  p.innerHTML=`<div id="mapEl" style="height:420px;width:100%;border-radius:8px;overflow:hidden"></div><div class="mleg" id="mleg"></div>`;
+  if(leafMap){try{leafMap.remove();}catch(_){}}
+  leafMap=null;
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      const el=document.getElementById("mapEl");
+      if(!el)return;
+      leafMap=L.map(el,{scrollWheelZoom:false}).setView([38,-96],4);
+      const tiles=L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",{attribution:"© OSM © CARTO",subdomains:"abcd",maxZoom:19});
+      tiles.on("tileerror",function(){tiles.setUrl("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png");});
+      tiles.addTo(leafMap);
+      setTimeout(()=>{leafMap.invalidateSize();},150);
+      HUBS.forEach(h=>{const c=h.t==="core"?"#4B8EF5":h.t==="seg"?"#7BA8F5":"#9B7FD0";L.circleMarker([h.lat,h.lon],{radius:4,fillColor:c,color:c,weight:1,fillOpacity:.4}).bindTooltip(h.n).addTo(leafMap);});
+      const pts=[];
+      results.forEach(r=>{
+        if(!r.lat||!r.lon)return;
+        pts.push([r.lat,r.lon]);
+        const t=TC[r.tier];const c=t?t.hex:"#888888";
+        const popHtml=`<b>${r.addr}</b><br><span style="color:${c}">${t?t.label:r.tier}</span>${r.market?`<br><small>${r.market}</small>`:""}`;
+        L.circleMarker([r.lat,r.lon],{radius:9,fillColor:c,color:"#1a0533",weight:2,fillOpacity:.95})
+          .bindPopup(popHtml)
+          .addTo(leafMap);
+      });
+      if(pts.length)try{leafMap.fitBounds(pts,{padding:[30,30],maxZoom:10});}catch(_){}
+      document.getElementById("mleg").innerHTML=
+        Object.entries(TC).map(([t,v])=>`<div class="mli"><div class="ldot" style="background:${v.hex}"></div>${v.label}</div>`).join("")+
+        `<div class="mli"><div class="ldot" style="background:#4B8EF5;opacity:.4"></div>Market hub</div>`;
+    });
+  });
+}
+
+function fmtM(n){if(!n)return"—";return"$"+n.toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0});}
+function rdrTable(){
+  const hasSpend=results.some(r=>r.spend>0);
+  const rows=results.map(r=>{const t=TC[r.tier]||{hex:"#888",bg:"rgba(136,136,136,.1)",bd:"rgba(136,136,136,.2)",label:r.tier};return`<tr><td style="max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.addr}</td><td><span class="tbadge" style="background:${t.bg};color:${t.hex};border-color:${t.bd}">${t.label}</span></td><td style="color:rgba(255,255,255,.4)">${r.market||"—"}</td><td style="color:rgba(255,255,255,.28);font-size:11px">${r.zip||"—"}</td>${hasSpend?`<td style="color:rgba(255,255,255,.6);font-weight:600;text-align:right">${fmtM(r.spend)}</td>`:""}</tr>`;}).join("");
+  document.getElementById("pane-table").innerHTML=`<div class="twrap"><table><thead><tr><th>Address</th><th>Tier</th><th>Nearest market</th><th>ZIP</th>${hasSpend?"<th style=\"text-align:right\">Spend</th>":""}</tr></thead><tbody>${rows}</tbody></table></div><div class="tacts"><button class="btn-s" onclick="dlCSV()">↓ Download CSV</button></div>`;
+}
+
+function rdrBk(){
+  const c=cntR(results);const tot=results.length;
+  const byM={};results.forEach(r=>{if(r.market){byM[r.market]=byM[r.market]||[];byM[r.market].push(r);}});
+  const mE=Object.entries(byM).sort((a,b)=>b[1].length-a[1].length).slice(0,10);const mx=mE[0]?mE[0][1].length:1;
+  const data=[
+    {t:"Core Market",n:c.core,c:"#00C875"},
+    {t:"Adjacent Market",n:c.adjacent,c:"#4B8EF5"},
+    {t:"Segmented Market",n:c.segmented,c:"#00C4B4"},
+    {t:"Expansion Market",n:c.expansion,c:"#B57BFF"},
+    {t:"Out of Coverage",n:c.outOf,c:"#FF9F43"},
+    {t:"Non-compliant",n:c.nonComp,c:"#FF6B6B"},
+  ].filter(d=>d.n>0);
+  let svg="";
+  if(data.length&&tot){const r=56,cx=68,cy=68,ir=32;let a=-Math.PI/2;const segs=data.map(d=>{const sw=d.n/tot*2*Math.PI;const x1=cx+r*Math.cos(a),y1=cy+r*Math.sin(a),a2=a+sw,x2=cx+r*Math.cos(a2),y2=cy+r*Math.sin(a2),xi1=cx+ir*Math.cos(a),yi1=cy+ir*Math.sin(a),xi2=cx+ir*Math.cos(a2),yi2=cy+ir*Math.sin(a2),lg=sw>Math.PI?1:0,path=`M${x1},${y1} A${r},${r} 0 ${lg},1 ${x2},${y2} L${xi2},${yi2} A${ir},${ir} 0 ${lg},0 ${xi1},${yi1} Z`;a=a2;return`<path d="${path}" fill="${d.c}"/>`;});svg=`<svg viewBox="0 0 136 136" width="136" height="136">${segs.join("")}<text x="68" y="63" text-anchor="middle" font-size="19" font-weight="700" fill="#fff" font-family="Space Grotesk,sans-serif">${tot}</text><text x="68" y="79" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.3)" font-family="Space Grotesk,sans-serif">locations</text></svg>`;}
+  const totSpend=results.reduce((s,r)=>s+r.spend,0);const hasSpend=totSpend>0;
+  const spendByTier=data.map(d=>({...d,sp:results.filter(r=>r.tier===d.t).reduce((s,r)=>s+r.spend,0)}));
+  const svcSpend=results.filter(r=>r.tier==="Core Market"||r.tier==="Adjacent Market").reduce((s,r)=>s+r.spend,0);
+  const svcP=tot?Math.round((c.core+c.adjacent)/tot*100):0;
+  const spendPanel=hasSpend?`<div class="bkp"><div class="bkh">Spend by coverage tier</div>${spendByTier.map(d=>`<div class="bar"><div class="bl" title="${TC[d.t]?.label||d.t}" style="color:${d.c}">${TC[d.t]?.label||d.t}</div><div class="bt"><div class="bf" style="width:${totSpend?Math.round(d.sp/totSpend*100):0}%;background:${d.c}"></div></div><div class="bn" style="color:${d.c}">${fmtM(d.sp)}</div></div>`).join("")}<div class="svcc"><div class="svcl">Total temp spend analyzed</div><div class="svcn">${fmtM(totSpend)}</div><div class="svcs">${fmtM(svcSpend)} (${totSpend?Math.round(svcSpend/totSpend*100):0}%) within serviceable coverage (Core + Adjacent)</div></div></div>`:"";
+  document.getElementById("pane-breakdown").innerHTML=`<div class="bkg">
+    <div class="bkp"><div class="bkh">Coverage distribution</div><div class="drow">${svg}<div class="dkeys">${data.map(d=>`<div class="dkr"><div class="dkd" style="background:${d.c}"></div><div class="dkn">${TC[d.t]?TC[d.t].label:d.t}</div><div class="dkv" style="color:${d.c}">${d.n}<span class="dkp">${Math.round(d.n/tot*100)}%</span></div></div>`).join("")}</div></div><div class="svcc"><div class="svcl">Serviceable today (Core + Adjacent)</div><div class="svcn">${svcP}%</div><div class="svcs">${c.core+c.adjacent} of ${tot} locations via Flex or Flex + Agency</div></div></div>
+    <div class="bkp"><div class="bkh">Locations by market</div>${mE.map(([mkt,locs])=>`<div class="bar"><div class="bl" title="${mkt}">${mkt}</div><div class="bt"><div class="bf" style="width:${Math.round(locs.length/mx*100)}%;background:${TC[locs[0].tier]?.hex||'#888'}"></div></div><div class="bn">${locs.length}</div></div>`).join("")||'<div style="color:rgba(255,255,255,.18);font-size:12px">No market matches</div>'}</div>
+  </div>${spendPanel}`;
+}
+
+function buildSlack(){
+  const c=cntR(results);const tot=results.length;
+  const svc=c.core+c.adjacent;const sP=tot?Math.round(svc/tot*100):0;
+  const mkts=t=>[...new Set(results.filter(r=>r.tier===t&&r.market).map(r=>r.market))].join(", ");
+  const{clientName,requester,goLive,clientStatus}=form;
+  const totSp=results.reduce((s,r)=>s+r.spend,0);const hasSp=totSp>0;
+  const spT=t=>results.filter(r=>r.tier===t).reduce((s,r)=>s+r.spend,0);
+  const fS=n=>n?"$"+n.toLocaleString():"$0";
+  const spTag=t=>hasSp?` (${fS(spT(t))} spend)`:"";
+  return`Hey @${requester||"team"} — here's the Location Coverage Analysis for *${clientName}*:
+${goLive?`\n*Target Go-Live:* ${goLive}`:""}${clientStatus?`\n*Client Status:* ${clientStatus}`:""}\n
+*Topline summary:*
+• ${tot} U.S. locations analyzed${hasSp?` · ${fS(totSp)} total temp spend`:""}
+• ${svc} (${sP}%) immediately serviceable today (Core + Adjacent)${hasSp?` · ${fS(spT("Core Market")+spT("Adjacent Market"))} serviceable spend`:""}
+• ${c.nonComp} location${c.nonComp!==1?"s":""} Non-compliant — require State + Local Compliance sign-off
+
+*Coverage breakdown:*
+• *Core Market (Full Flex):* ${c.core} location${c.core!==1?"s":""}${c.core?" — "+mkts("Core Market"):""}${spTag("Core Market")}
+• *Adjacent Market (Flexers + Agency, MSP only):* ${c.adjacent} location${c.adjacent!==1?"s":""}${c.adjacent?" — "+mkts("Adjacent Market"):""}${spTag("Adjacent Market")}
+• *Segmented Market (Targeted Flex + Agency):* ${c.segmented} location${c.segmented!==1?"s":""}${c.segmented?" — "+mkts("Segmented Market"):""}${spTag("Segmented Market")}
+• *Expansion Market (Flex + Agency, MSP only):* ${c.expansion} location${c.expansion!==1?"s":""}${c.expansion?" — "+mkts("Expansion Market"):""}${spTag("Expansion Market")}
+• *Out of Coverage (Agency only):* ${c.outOf} location${c.outOf!==1?"s":""}${spTag("Out of Coverage")}
+• *Non-compliant (Compliance required):* ${c.nonComp} location${c.nonComp!==1?"s":""}${spTag("Non-compliant")}
+
+*Support model guide:*
+• Core Market = Full Flex, active recruitment SLA, all clients
+• Adjacent Market = Existing Flexers + Agency, MSP only, LTDTW enabled
+• Segmented Market = Flex + Agency, targeted single client recruitment
+• Expansion Market = Flex + Agency, MSP clients only, targeted recruitment
+• Out of Coverage = Agency only, no demand push without supply confidence
+• Non-compliant = Requires State + Local Compliance sign-off before any deployment`;
+}
+
+function rdrSlack(){const txt=buildSlack();document.getElementById("pane-slack").innerHTML=`<div class="slkt"><span>Ready to paste into Slack</span><div class="slkb"><button class="btn-s" onclick="dlCSV()">↓ CSV</button><button class="btn-s" id="cpb" onclick="cpSlack(this,'${encodeURIComponent(txt)}')">Copy message</button></div></div><pre class="slkpre">${txt.replace(/</g,"&lt;")}</pre>`;}
+
+function cpSlack(btn,enc){navigator.clipboard.writeText(decodeURIComponent(enc));btn.textContent="✓ Copied!";btn.className="btn-s ok";setTimeout(()=>{btn.textContent="Copy message";btn.className="btn-s";},2000);}
+
+function dlCSV(){const hasSpend=results.some(r=>r.spend>0);const rows=[["Address","Tier","Nearest Market","ZIP","Support Model",...(hasSpend?["Spend"]:[])].join(",")];results.forEach(r=>{const sm=TC[r.tier]?TC[r.tier].model:"";rows.push([`"${r.addr}"`,r.tier,r.market||"",r.zip||"",`"${sm}"`,...(hasSpend?[r.spend||0]:[])].join(","))});const url=URL.createObjectURL(new Blob([rows.join("\n")],{type:"text/csv"}));const a=document.createElement("a");a.href=url;a.download=`coverage-${(form.clientName||"analysis").replace(/\s+/g,"-").toLowerCase()}-${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(url);}
+
+function rdrSide(){const el=document.getElementById("slist");if(!saved.length){el.innerHTML='<div class="sempty">No saved analyses yet</div>';return;}el.innerHTML=saved.map(h=>{const tags=[h.core?`<span class="sittag" style="background:rgba(0,200,117,.1);color:#00C875;border-color:rgba(0,200,117,.25)">${h.core} core</span>`:"",h.adjacent?`<span class="sittag" style="background:rgba(75,142,245,.1);color:#4B8EF5;border-color:rgba(75,142,245,.25)">${h.adjacent} adj</span>`:"",h.segmented?`<span class="sittag" style="background:rgba(0,196,180,.1);color:#00C4B4;border-color:rgba(0,196,180,.25)">${h.segmented} seg</span>`:"",h.expansion?`<span class="sittag" style="background:rgba(181,123,255,.1);color:#B57BFF;border-color:rgba(181,123,255,.25)">${h.expansion} exp</span>`:"",h.outOf?`<span class="sittag" style="background:rgba(255,159,67,.1);color:#FF9F43;border-color:rgba(255,159,67,.25)">${h.outOf} out</span>`:"",h.nonComp?`<span class="sittag" style="background:rgba(255,107,107,.1);color:#FF6B6B;border-color:rgba(255,107,107,.25)">${h.nonComp} nc</span>`:""].filter(Boolean).join("");return`<div class="sit" onclick="ldEntry(${h.id})"><div class="sitn">${h.clientName}</div><div class="sitm">${h.date}${h.requester?" · @"+h.requester:""}</div><div class="sittags">${tags}</div><button class="sitd" onclick="event.stopPropagation();dlEntry(${h.id})">×</button></div>`;}).join("");}
+
+function ldEntry(id){const h=saved.find(x=>x.id===id);if(!h)return;results=h.results;form={clientName:h.clientName,requester:h.requester||"",goLive:h.goLive||"",clientStatus:h.clientStatus||""};document.getElementById("intake").style.display="none";document.getElementById("backBtn").style.display="flex";showRes();}
+function dlEntry(id){saved=saved.filter(x=>x.id!==id);localStorage.setItem(SK,JSON.stringify(saved));rdrSide();updB();}
+function goIntake(){document.getElementById("intake").style.display="block";document.getElementById("results").style.display="none";document.getElementById("loading").style.display="none";document.getElementById("backBtn").style.display="none";}
+function showErr(msg){const e=document.getElementById("err");e.textContent=msg;e.style.display="block";}
+function hideErr(){document.getElementById("err").style.display="none";}
+function loadSample(){document.getElementById("raw").value="CITY\tSTATE\tZIP\tSPEND\nATLANTA\tGA\t30303\t$2,000\nCHARLOTTE\tNC\t28202\t$2,000\nIRVINE\tCA\t92630\t$1,000\nSAN ANTONIO\tTX\t78201\t$1,000\nTEMPE\tAZ\t85281\t$1,000\nORLANDO\tFL\t32801\t$1,000\nINDIANAPOLIS\tIN\t46204\t$1,000\nBOSTON\tMA\t02108\t$1,000";}
+
+// fix scorecard top bar via JS (CSS ::before can't be set inline)
+function fixScores(){document.querySelectorAll(".sc").forEach((el,i)=>{el.style.borderTop=`3px solid ${SHEX[i]}`;});}
+document.addEventListener("DOMContentLoaded",()=>{updB();rdrSide();});
+// override to fix after render
+const origRdrScores=rdrScores;
+</script>
+</body>
+</html>
