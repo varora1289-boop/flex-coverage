@@ -17,6 +17,7 @@ const REFRESH_INTERVAL = 4 * 60 * 60 * 1000; // 4 hours
 // In-memory data
 let cachedTerritories = {};
 let cachedStates = new Set();
+let cachedHubs = {};
 let dataSource = "not loaded";
 let lastRefresh = null;
 
@@ -56,6 +57,8 @@ function parseRedashCSV(csv) {
   const iMarketCov = col("MARKET_COVERAGE");
   const iMarket = col("MARKET");
   const iState = col("STATE_ABREVIATION") >= 0 ? col("STATE_ABREVIATION") : col("STATE");
+  const iLat = col("LATITUDE");
+  const iLng = col("LONGITUDE");
 
   if (iPostcode < 0 || iMarketCov < 0) {
     console.log("  ⚠ Redash CSV missing POSTCODE or MARKET_COVERAGE columns");
@@ -73,6 +76,7 @@ function parseRedashCSV(csv) {
 
   const territories = {};
   const coreAdjStates = new Set(); // states that have core or adj markets
+  const hubAcc = {}; // market -> {sumLat, sumLng, n} for Core Market centroids
 
   for (let i = 1; i < lines.length; i++) {
     // Parse CSV row (handle quoted fields)
@@ -88,23 +92,45 @@ function parseRedashCSV(csv) {
     const coverage = (clean[iMarketCov] || "").toUpperCase().trim();
     const market = iMarket >= 0 ? (clean[iMarket] || "") : "";
     const state = iState >= 0 ? (clean[iState] || "").toUpperCase().trim() : "";
+    const lat = iLat >= 0 ? parseFloat(clean[iLat]) : NaN;
+    const lng = iLng >= 0 ? parseFloat(clean[iLng]) : NaN;
 
     const type = tierMap[coverage];
 
     if (type) {
       // Core, Adjacent, Segmented, or Expansion — add to territories
-      territories[postcode] = { market, type };
+      const entry = { market, type };
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        entry.lat = lat;
+        entry.lng = lng;
+      }
+      territories[postcode] = entry;
 
       // Track which states have core or adjacent markets
       if ((type === "core" || type === "adj") && state.length === 2) {
         coreAdjStates.add(state);
       }
+
+      // Build market hub centroids from Core Market only (these are the actual coverage hubs)
+      if (type === "core" && market && Number.isFinite(lat) && Number.isFinite(lng)) {
+        if (!hubAcc[market]) hubAcc[market] = { sumLat: 0, sumLng: 0, n: 0 };
+        hubAcc[market].sumLat += lat;
+        hubAcc[market].sumLng += lng;
+        hubAcc[market].n += 1;
+      }
     }
     // Out of Coverage and Non-compliant are handled by state fallback
-    // but we still track states that have core/adj for the fallback logic
   }
 
-  return { territories, states: coreAdjStates };
+  // Compute centroid lat/lng per Core Market name
+  const hubs = {};
+  for (const [m, a] of Object.entries(hubAcc)) {
+    if (a.n > 0) {
+      hubs[m] = { lat: a.sumLat / a.n, lng: a.sumLng / a.n, count: a.n };
+    }
+  }
+
+  return { territories, states: coreAdjStates, hubs };
 }
 
 // ─── Load from local CSV (fallback) ───
@@ -145,6 +171,7 @@ async function refreshData() {
 
     if (count > 100) {
       cachedTerritories = result.territories;
+      cachedHubs = result.hubs || {};
       // Use states derived from Redash data, plus any from local config
       try {
         const localStates = loadCompliantStates();
@@ -155,13 +182,14 @@ async function refreshData() {
       dataSource = "Redash (live)";
       lastRefresh = new Date().toISOString();
       console.log(`  ✓ Loaded ${count} ZIP territories from Redash`);
+      console.log(`  ✓ ${Object.keys(cachedHubs).length} Core Market hubs (centroids)`);
       console.log(`  ✓ ${cachedStates.size} compliant states (${[...cachedStates].sort().join(", ")})`);
 
       // Save backup
       try {
-        const rows = ["zip,market,tier"];
+        const rows = ["zip,market,tier,lat,lng"];
         for (const [zip, data] of Object.entries(result.territories)) {
-          rows.push(`${zip},${data.market},${data.type}`);
+          rows.push(`${zip},${data.market},${data.type},${data.lat ?? ""},${data.lng ?? ""}`);
         }
         fs.writeFileSync(path.join(__dirname, "data", "territories_redash_backup.csv"), rows.join("\n"));
       } catch (_) {}
@@ -192,8 +220,10 @@ app.get("/api/territories", (req, res) => {
   res.json({
     territories: cachedTerritories,
     compliantStates: [...cachedStates],
+    marketHubs: cachedHubs,
     dataSource, lastRefresh,
-    zipCount: Object.keys(cachedTerritories).length
+    zipCount: Object.keys(cachedTerritories).length,
+    hubCount: Object.keys(cachedHubs).length
   });
 });
 
@@ -202,6 +232,7 @@ app.get("/api/refresh", async (req, res) => {
   res.json({
     message: "Data refreshed", dataSource, lastRefresh,
     zipCount: Object.keys(cachedTerritories).length,
+    hubCount: Object.keys(cachedHubs).length,
     compliantStates: [...cachedStates]
   });
 });
