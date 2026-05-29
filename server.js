@@ -135,16 +135,65 @@ function parseRedashCSV(csv) {
 
 // ─── Load from local CSV (fallback) ───
 function loadLocalTerritories() {
-  const csv = fs.readFileSync(path.join(__dirname, "data", "territories.csv"), "utf8");
-  const lines = csv.trim().split("\n").slice(1);
-  const map = {};
-  for (const line of lines) {
-    const [zip, market, tier] = line.split(",");
-    if (zip && market && tier) {
-      map[zip.trim().padStart(5, "0")] = { market: market.trim(), type: tier.trim() };
+  // Prefer the full CSV (zip,market,tier,state,lat,lng) when present — bundled in the repo.
+  // Falls back to the legacy compact CSV (zip,market,tier).
+  const fullPath = path.join(__dirname, "data", "territories_full.csv");
+  const legacyPath = path.join(__dirname, "data", "territories.csv");
+  const csvPath = fs.existsSync(fullPath) ? fullPath : legacyPath;
+  const csv = fs.readFileSync(csvPath, "utf8");
+  const lines = csv.trim().split("\n");
+  const header = lines[0].split(",").map(h => h.trim().toLowerCase());
+  const idx = name => header.indexOf(name);
+  const iZip = idx("zip"), iMarket = idx("market"), iTier = idx("tier"),
+        iState = idx("state"), iLat = idx("lat"), iLng = idx("lng");
+
+  const territories = {};
+  const coreAdjStates = new Set();
+  const hubAcc = {};
+
+  for (let i = 1; i < lines.length; i++) {
+    // Handle quoted market field (in full CSV); legacy CSV is unquoted.
+    const vals = (lines[i].match(/(".*?"|[^,]*)/g) || []).filter(v => v !== "");
+    if (vals.length < 3) continue;
+    const clean = vals.map(v => v.replace(/^"|"$/g, "").trim());
+
+    const zip = (clean[iZip] || "").replace(/\D/g, "").padStart(5, "0");
+    if (zip.length !== 5 || zip === "00000") continue;
+    const market = clean[iMarket] || "";
+    const tier = (clean[iTier] || "").toLowerCase();
+    if (!tier) continue;
+
+    const state = iState >= 0 ? (clean[iState] || "").toUpperCase() : "";
+    const lat = iLat >= 0 ? parseFloat(clean[iLat]) : NaN;
+    const lng = iLng >= 0 ? parseFloat(clean[iLng]) : NaN;
+
+    // Only store entries the classifier knows about
+    if (!["core","adj","seg","exp"].includes(tier)) continue;
+
+    const entry = { market, type: tier };
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      entry.lat = lat;
+      entry.lng = lng;
+    }
+    territories[zip] = entry;
+
+    if ((tier === "core" || tier === "adj") && state.length === 2) {
+      coreAdjStates.add(state);
+    }
+    if (tier === "core" && market && Number.isFinite(lat) && Number.isFinite(lng)) {
+      if (!hubAcc[market]) hubAcc[market] = { sumLat: 0, sumLng: 0, n: 0 };
+      hubAcc[market].sumLat += lat;
+      hubAcc[market].sumLng += lng;
+      hubAcc[market].n += 1;
     }
   }
-  return map;
+
+  const hubs = {};
+  for (const [m, a] of Object.entries(hubAcc)) {
+    if (a.n > 0) hubs[m] = { lat: a.sumLat / a.n, lng: a.sumLng / a.n, count: a.n };
+  }
+
+  return { territories, states: coreAdjStates, hubs, sourceFile: path.basename(csvPath) };
 }
 
 function loadCompliantStates() {
@@ -162,7 +211,7 @@ function loadCompliantStates() {
 
 // ─── Refresh data ───
 async function refreshData() {
-  // Try Redash first
+  // Try Redash first (only works on networks that can reach flex-redash.indeed.tech)
   try {
     console.log("  ↻ Fetching territory data from Redash...");
     const csv = await fetchURL(REDASH_CSV_URL);
@@ -195,19 +244,27 @@ async function refreshData() {
       } catch (_) {}
       return;
     } else {
-      console.log(`  ⚠ Redash returned only ${count} records, falling back to local CSV`);
+      console.log(`  ⚠ Redash returned only ${count} records, falling back to bundled CSV`);
     }
   } catch (err) {
-    console.log(`  ⚠ Redash unavailable (${err.message}), falling back to local CSV`);
+    console.log(`  ⚠ Redash unavailable (${err.message}), falling back to bundled CSV`);
   }
 
-  // Fallback
+  // Fallback — bundled territories_full.csv (zip,market,tier,state,lat,lng) or legacy territories.csv
   try {
-    cachedTerritories = loadLocalTerritories();
-    cachedStates = loadCompliantStates();
-    dataSource = "Local CSV (fallback)";
+    const result = loadLocalTerritories();
+    cachedTerritories = result.territories;
+    cachedHubs = result.hubs || {};
+    try {
+      const localStates = loadCompliantStates();
+      cachedStates = new Set([...(result.states || []), ...localStates]);
+    } catch (_) {
+      cachedStates = result.states || new Set();
+    }
+    dataSource = `Bundled CSV (${result.sourceFile || "fallback"})`;
     lastRefresh = new Date().toISOString();
-    console.log(`  ✓ Loaded ${Object.keys(cachedTerritories).length} ZIP territories from local CSV`);
+    console.log(`  ✓ Loaded ${Object.keys(cachedTerritories).length} ZIP territories from ${result.sourceFile}`);
+    console.log(`  ✓ ${Object.keys(cachedHubs).length} Core Market hubs (centroids)`);
     console.log(`  ✓ ${cachedStates.size} compliant states`);
   } catch (err) {
     console.log("  ✗ Could not load local data:", err.message);
