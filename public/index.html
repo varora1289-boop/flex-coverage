@@ -269,8 +269,8 @@ pre.slkpre{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.0
         <button class="tabt" id="tab-breakdown" onclick="sw('breakdown')">◕ Breakdown</button>
         <button class="tabt" id="tab-slack" onclick="sw('slack')"># Slack</button>
         <div style="flex:1"></div>
-        <button class="tabt dl" onclick="dlHtmlReport()" title="Self-contained HTML report (interactive map + clickable filters)" style="color:var(--pink2)">↓ Report (HTML)</button>
-        <button class="tabt dl" onclick="dlXls()" title="Color-coded spreadsheet — opens in Excel and Google Sheets" style="color:var(--pink2)">↓ Spreadsheet</button>
+        <button class="tabt dl" onclick="dlHtmlReport()" title="Self-contained HTML file — interactive map and clickable tier filters" style="color:var(--pink2)">◎ Download interactive map (HTML)</button>
+        <button class="tabt dl" onclick="dlXls()" title="Excel / Google Sheets workbook with per-tier tabs, AutoFilter, and color coding" style="color:var(--pink2)">▦ Download workbook (Excel/Sheets)</button>
       </div>
       <div class="tabbody">
         <div id="pane-map"></div>
@@ -807,14 +807,22 @@ html,body{background:var(--navy);color:#fff;font-family:'Space Grotesk',system-u
 .cbar .cl{font-size:9px;font-weight:700;color:rgba(255,255,255,.3);letter-spacing:.12em;text-transform:uppercase}
 .cbar .cv{font-size:14px;font-weight:700;margin-top:1px}
 .scores{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px}
-.sc{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s}
-.sc:hover{transform:translateY(-2px)}
+.sc{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;position:relative}
+.sc:hover{transform:translateY(-2px);border-color:rgba(232,23,93,.3)}
+.sc:hover::after{content:'click to filter ↓';position:absolute;bottom:4px;right:8px;font-size:9px;color:var(--pink2);font-weight:700;opacity:.7}
 .sc.dim{opacity:.35}
-.sc.act{border-color:var(--pink);box-shadow:0 0 0 1px var(--pink)}
+.sc.act{border-color:var(--pink);box-shadow:0 0 0 1px var(--pink),0 4px 18px rgba(232,23,93,.25)}
 .sc .l{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
 .sc .n{font-size:32px;font-weight:700;line-height:1}
 .sc .p{font-size:11px;color:rgba(255,255,255,.4);margin-top:3px}
 .sc .m{font-size:10px;color:rgba(255,255,255,.25);margin-top:5px}
+.chips{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 16px;padding:10px 14px;background:linear-gradient(90deg,rgba(232,23,93,.08),rgba(124,58,237,.06));border:1px solid rgba(232,23,93,.2);border-radius:10px}
+.chips .ln{font-size:10px;font-weight:700;letter-spacing:.14em;color:rgba(255,255,255,.5);text-transform:uppercase;margin-right:4px}
+.chips .chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:18px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.chips .chip:hover{background:rgba(232,23,93,.15);border-color:var(--pink)}
+.chips .chip.act{background:var(--pink);border-color:var(--pink);color:#fff;box-shadow:0 2px 10px rgba(232,23,93,.4)}
+.chips .chip .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.chips .chip .ct{opacity:.7;font-weight:500;margin-left:2px}
 .tabs{display:flex;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-bottom:none;border-radius:10px 10px 0 0;padding:0 4px}
 .tab{background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;padding:12px 16px;color:rgba(255,255,255,.4);cursor:pointer;font-family:inherit;font-size:13px;font-weight:600}
 .tab.on{color:var(--pink2);border-bottom-color:var(--pink)}
@@ -846,6 +854,7 @@ tr:hover td{background:rgba(255,255,255,.03)}
 <div id="wrap">
   <div class="cbar" id="cbar"></div>
   <div class="scores" id="scs"></div>
+  <div class="chips" id="chips"></div>
   <div class="tabs">
     <button class="tab on" data-tab="map">◎ Map</button>
     <button class="tab" data-tab="table">≡ Locations</button>
@@ -864,10 +873,11 @@ function fmtD(mi){if(mi==null)return"—";if(mi<1)return"<1 mi";if(mi<100)return
 function fmtM(n){return n?"$"+n.toLocaleString():"—";}
 function cnt(rs){return{core:rs.filter(r=>r.tier==="Core Market").length,adjacent:rs.filter(r=>r.tier==="Adjacent Market").length,segmented:rs.filter(r=>r.tier==="Segmented Market").length,expansion:rs.filter(r=>r.tier==="Expansion Market").length,outOf:rs.filter(r=>r.tier==="Out of Coverage").length,nonComp:rs.filter(r=>r.tier==="Non-compliant").length};}
 function fr(){return tierFilter?results.filter(r=>r.tier===tierFilter):results;}
-function setF(t){tierFilter=tierFilter===t?null:t;rdrScs();rdrTab();}
 function rdrMeta(){document.getElementById("meta").textContent=(form.clientName||"")+" · "+new Date(PAYLOAD.generatedAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});document.getElementById("genat").textContent=new Date(PAYLOAD.generatedAt).toLocaleString();}
 function rdrBar(){let h="<div><div class='cl'>Client</div><div class='cv'>"+(form.clientName||"")+"</div></div>";if(form.requester)h+="<div><div class='cl'>Sales rep</div><div class='cv'>@"+form.requester+"</div></div>";if(form.goLive)h+="<div><div class='cl'>Go-live</div><div class='cv'>"+form.goLive+"</div></div>";if(form.clientStatus)h+="<div><div class='cl'>Status</div><div class='cv'>"+form.clientStatus+"</div></div>";document.getElementById("cbar").innerHTML=h;}
-function rdrScs(){const c=cnt(results),tot=results.length,vals=[c.core,c.adjacent,c.segmented,c.expansion,c.outOf,c.nonComp];document.getElementById("scs").innerHTML=vals.map((n,i)=>{const t=SLBL[i];const a=tierFilter===t,d=tierFilter&&!a;return"<div class='sc"+(a?" act":"")+(d?" dim":"")+"' style='border-top:3px solid "+SHEX[i]+"' onclick=\\"setF('"+t+"')\\"><div class='l' style='color:"+SHEX[i]+"'>"+t+"</div><div class='n' style='color:"+SHEX[i]+"'>"+n+"</div><div class='p'>"+(tot?Math.round(n/tot*100):0)+"%</div><div class='m'>"+SMOD[i]+"</div></div>";}).join("");}
+function rdrScs(){const c=cnt(results),tot=results.length,vals=[c.core,c.adjacent,c.segmented,c.expansion,c.outOf,c.nonComp];document.getElementById("scs").innerHTML=vals.map((n,i)=>{const t=SLBL[i];const a=tierFilter===t,d=tierFilter&&!a;return"<div class='sc"+(a?" act":"")+(d?" dim":"")+"' style='border-top:3px solid "+SHEX[i]+"' onclick=\\"setF('"+t+"')\\"><div class='l' style='color:"+SHEX[i]+"'>"+t+"</div><div class='n' style='color:"+SHEX[i]+"'>"+n+"</div><div class='p'>"+(tot?Math.round(n/tot*100):0)+"%</div><div class='m'>"+SMOD[i]+"</div></div>";}).join("");rdrChips();}
+function rdrChips(){const c=cnt(results),tot=results.length,vals=[c.core,c.adjacent,c.segmented,c.expansion,c.outOf,c.nonComp];const allChip="<button class='chip"+(tierFilter?"":" act")+"' onclick=\\"setF(null)\\">All <span class='ct'>"+tot+"</span></button>";const tierChips=SLBL.map((t,i)=>{const a=tierFilter===t;return"<button class='chip"+(a?" act":"")+"' onclick=\\"setF('"+t+"')\\"><span class='dot' style='background:"+SHEX[i]+"'></span>"+t+"<span class='ct'>"+vals[i]+"</span></button>";}).join("");document.getElementById("chips").innerHTML="<div class='ln'>Filter by tier</div>"+allChip+tierChips;}
+function setF(t){if(t===null)tierFilter=null;else tierFilter=tierFilter===t?null:t;rdrScs();rdrTab();}
 function rdrTab(){if(curTab==="map")rdrMap();else if(curTab==="table")rdrTable();else rdrBk();}
 function rdrMap(){const b=document.getElementById("body");const fb=tierFilter?"<div class='fbar'>Filtered: <b style='color:"+TC[tierFilter].hex+"'>"+tierFilter+"</b> · <button class='clr' onclick=\\"setF('"+tierFilter+"')\\">clear</button></div>":"";b.innerHTML=fb+"<div id='map'></div><div class='leg' id='leg'></div>";if(leafMap){try{leafMap.remove();}catch(e){}}leafMap=null;requestAnimationFrame(()=>{const el=document.getElementById("map");leafMap=L.map(el,{scrollWheelZoom:false,preferCanvas:true}).setView([38,-96],4);L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",{attribution:"© OSM © CARTO",subdomains:"abcd",maxZoom:19}).addTo(leafMap);setTimeout(()=>leafMap.invalidateSize(),100);if(!tierFilter)HUBS.forEach(h=>L.circleMarker([h.lat,h.lon],{radius:4,fillColor:"#4B8EF5",color:"#4B8EF5",weight:1,fillOpacity:.4}).bindTooltip(h.n+" (Core hub)").addTo(leafMap));const pts=[];fr().forEach(r=>{if(!r.lat||!r.lon)return;pts.push([r.lat,r.lon]);const t=TC[r.tier]||{hex:"#888",label:r.tier};const dl=r.nearestMi!=null?"<br><span style='color:rgba(0,0,0,.6)'>Nearest core market: <b>"+(r.nearestMarket||"—")+"</b> · "+fmtD(r.nearestMi)+"</span>":"";L.circleMarker([r.lat,r.lon],{radius:9,fillColor:t.hex,color:"#1a0533",weight:2,fillOpacity:.95}).bindPopup("<b>"+r.addr+"</b><br><span style='color:"+t.hex+"'>"+t.label+"</span>"+(r.market?"<br><small>"+r.market+"</small>":"")+dl).addTo(leafMap);});if(pts.length)try{leafMap.fitBounds(pts,{padding:[30,30],maxZoom:10});}catch(e){}document.getElementById("leg").innerHTML=Object.entries(TC).map(([t,v])=>"<div class='li' onclick=\\"setF('"+t+"')\\"><div class='dot' style='background:"+v.hex+"'></div>"+v.label+"</div>").join("")+(HUBS.length&&!tierFilter?"<div class='li'><div class='dot' style='background:#4B8EF5;opacity:.4'></div>Core market hub</div>":"");});}
 function rdrTable(){const v=fr(),hs=v.some(r=>r.spend>0);const fb=tierFilter?"<div class='fbar'>Showing <b>"+v.length+"</b> of "+results.length+" · <b style='color:"+TC[tierFilter].hex+"'>"+tierFilter+"</b> · <button class='clr' onclick=\\"setF('"+tierFilter+"')\\">clear</button></div>":"";const rows=v.map(r=>{const t=TC[r.tier]||{hex:"#888",bg:"rgba(136,136,136,.1)",bd:"rgba(136,136,136,.2)",label:r.tier};const dc=r.nearestMi!=null?"<b>"+fmtD(r.nearestMi)+"</b>"+(r.nearestMarket?"<br><span style='font-size:10px;color:rgba(255,255,255,.3)'>"+r.nearestMarket+"</span>":""):(r.nearestMarket||r.market||"—");return"<tr><td>"+r.addr+"</td><td><span class='tbadge' style='background:"+t.bg+";color:"+t.hex+";border-color:"+t.bd+"'>"+t.label+"</span></td><td>"+dc+"</td><td style='color:rgba(255,255,255,.3);font-size:11px'>"+(r.zip||"—")+"</td>"+(hs?"<td style='text-align:right;font-weight:600'>"+fmtM(r.spend)+"</td>":"")+"</tr>";}).join("");document.getElementById("body").innerHTML=fb+"<div style='overflow-x:auto'><table><thead><tr><th>Address</th><th>Tier</th><th>Nearest core market · dist</th><th>ZIP</th>"+(hs?"<th style='text-align:right'>Spend</th>":"")+"</tr></thead><tbody>"+rows+"</tbody></table></div>";}
@@ -883,16 +893,31 @@ rdrMeta();rdrBar();rdrScs();rdrTab();
 
 /* ─── Styled multi-sheet workbook download (.xls — opens in Excel/Google Sheets with colors) ─── */
 function dlXls(){
+  const liveUrl=(location && location.origin)?location.origin:"https://flex-coverage.onrender.com";
   const c=cntR(results);const tot=results.length;const totSp=results.reduce((s,r)=>s+(r.spend||0),0);
   const hasSp=totSp>0;
   const tierBg={"Core Market":"#D6F5E5","Adjacent Market":"#DCEAFD","Segmented Market":"#D2F2EF","Expansion Market":"#ECDEFB","Out of Coverage":"#FFE9D0","Non-compliant":"#FFD9D9"};
   const tierFg={"Core Market":"#00734A","Adjacent Market":"#1B5BB8","Segmented Market":"#007D71","Expansion Market":"#6D2BAD","Out of Coverage":"#B85F00","Non-compliant":"#B82929"};
+  const tierAbbr={"Core Market":"Core","Adjacent Market":"Adjacent","Segmented Market":"Segmented","Expansion Market":"Expansion","Out of Coverage":"OutOfCoverage","Non-compliant":"NonCompliant"};
   const xEsc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   const pct=n=>tot?Math.round(n/tot*100):0;
-  const fmtSp=v=>v?"$"+Number(v).toLocaleString():"";
+
+  // ── Branded header rows used at the top of each sheet ──
+  function brandHeader(subtitle, cols){
+    cols=cols||8;
+    return [
+      `<Row ss:Height="34"><Cell ss:MergeAcross="${cols-1}" ss:StyleID="brand"><Data ss:Type="String">  INDEED FLEX — Coverage Analysis</Data></Cell></Row>`,
+      `<Row ss:Height="22"><Cell ss:MergeAcross="${cols-1}" ss:StyleID="brandsub"><Data ss:Type="String">  ${xEsc(subtitle)}</Data></Cell></Row>`,
+      `<Row></Row>`,
+    ];
+  }
+
   // ── Summary sheet ──
   const summaryRows=[
-    `<Row><Cell ss:MergeAcross="3" ss:StyleID="title"><Data ss:Type="String">Indeed Flex — Coverage Analysis</Data></Cell></Row>`,
+    ...brandHeader(`${form.clientName||"Unnamed client"}${form.requester?"  ·  @"+form.requester:""}${form.clientStatus?"  ·  "+form.clientStatus:""}`, 4),
+    `<Row><Cell ss:StyleID="link" ss:HRef="${liveUrl}"><Data ss:Type="String">◎ Open the interactive map → click any tier to filter</Data></Cell></Row>`,
+    `<Row><Cell ss:StyleID="hint"><Data ss:Type="String">↓ Switch sheet tabs below to view one tier at a time (Core / Adjacent / Segmented / Expansion / Out of Coverage / Non-compliant), or use the AutoFilter ▼ icons on the "All Locations" sheet.</Data></Cell></Row>`,
+    `<Row></Row>`,
     `<Row><Cell ss:StyleID="kv-k"><Data ss:Type="String">Client</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="String">${xEsc(form.clientName||"")}</Data></Cell><Cell ss:StyleID="kv-k"><Data ss:Type="String">Sales rep</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="String">${form.requester?"@"+xEsc(form.requester):""}</Data></Cell></Row>`,
     `<Row><Cell ss:StyleID="kv-k"><Data ss:Type="String">Go-live target</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="String">${xEsc(form.goLive||"")}</Data></Cell><Cell ss:StyleID="kv-k"><Data ss:Type="String">Status</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="String">${xEsc(form.clientStatus||"")}</Data></Cell></Row>`,
     `<Row><Cell ss:StyleID="kv-k"><Data ss:Type="String">Run date</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="String">${new Date().toLocaleString()}</Data></Cell><Cell ss:StyleID="kv-k"><Data ss:Type="String">Total locations</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="Number">${tot}</Data></Cell></Row>`,
@@ -902,34 +927,57 @@ function dlXls(){
   [["Core Market",c.core],["Adjacent Market",c.adjacent],["Segmented Market",c.segmented],["Expansion Market",c.expansion],["Out of Coverage",c.outOf],["Non-compliant",c.nonComp]].forEach(([t,n])=>{
     const sp=results.filter(r=>r.tier===t).reduce((s,r)=>s+(r.spend||0),0);
     const sid="t-"+t.replace(/[^a-z]/gi,"");
-    summaryRows.push(`<Row><Cell ss:StyleID="${sid}"><Data ss:Type="String">${t}</Data></Cell><Cell ss:StyleID="${sid}-n"><Data ss:Type="Number">${n}</Data></Cell><Cell ss:StyleID="${sid}-p"><Data ss:Type="Number">${pct(n)/100}</Data></Cell><Cell ss:StyleID="${sid}-n"><Data ss:Type="${sp?"Number":"String"}">${sp||""}</Data></Cell></Row>`);
+    summaryRows.push(`<Row><Cell ss:StyleID="${sid}-link" ss:HRef="#'${tierAbbr[t]}'!A1"><Data ss:Type="String">${t}  →</Data></Cell><Cell ss:StyleID="${sid}-n"><Data ss:Type="Number">${n}</Data></Cell><Cell ss:StyleID="${sid}-p"><Data ss:Type="Number">${pct(n)/100}</Data></Cell><Cell ss:StyleID="${sid}-n"><Data ss:Type="${sp?"Number":"String"}">${sp||""}</Data></Cell></Row>`);
   });
-  summaryRows.push(`<Row></Row>`,`<Row><Cell ss:StyleID="kv-k"><Data ss:Type="String">Serviceable (Core+Adj) %</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="Number">${pct(c.core+c.adjacent)/100}</Data></Cell><Cell ss:StyleID="kv-k"><Data ss:Type="String">Total temp spend</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="${totSp?"Number":"String"}">${totSp||""}</Data></Cell></Row>`);
+  summaryRows.push(`<Row></Row>`,
+    `<Row><Cell ss:StyleID="kv-k"><Data ss:Type="String">Serviceable today (Core + Adjacent) %</Data></Cell><Cell ss:StyleID="kv-vbig"><Data ss:Type="Number">${pct(c.core+c.adjacent)/100}</Data></Cell><Cell ss:StyleID="kv-k"><Data ss:Type="String">Total temp spend</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="${totSp?"Number":"String"}">${totSp||""}</Data></Cell></Row>`,
+    `<Row></Row>`,
+    `<Row><Cell ss:StyleID="footnote" ss:MergeAcross="3"><Data ss:Type="String">Want the interactive map with live click-to-filter? Open the HTML report — same data, with a real Leaflet map you can pan and zoom: ${liveUrl}</Data></Cell></Row>`
+  );
 
-  // ── Locations sheet ──
-  const locRows=[`<Row><Cell ss:StyleID="hdr"><Data ss:Type="String">Address</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Tier</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Nearest Core Market</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Distance (mi)</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">ZIP</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Lat</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Lon</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Support Model</Data></Cell>${hasSp?'<Cell ss:StyleID="hdr"><Data ss:Type="String">Spend ($)</Data></Cell>':""}</Row>`];
-  results.forEach(r=>{
+  // ── Locations sheet builder (used for All Locations + one per tier) ──
+  const baseHdr=`<Row><Cell ss:StyleID="hdr"><Data ss:Type="String">Address</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Tier</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Nearest Core Market</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Distance (mi)</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">ZIP</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">State</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Lat</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Lon</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Support Model</Data></Cell>${hasSp?'<Cell ss:StyleID="hdr"><Data ss:Type="String">Spend ($)</Data></Cell>':""}</Row>`;
+  const ncols=hasSp?10:9;
+  function rowFor(r){
     const sid="row-"+(r.tier||"x").replace(/[^a-z]/gi,"");
     const sm=TC[r.tier]?TC[r.tier].model:"";
     const dist=r.nearestMi!=null?Math.round(r.nearestMi):"";
-    locRows.push(`<Row><Cell ss:StyleID="${sid}"><Data ss:Type="String">${xEsc(r.addr||"")}</Data></Cell><Cell ss:StyleID="${sid}-b"><Data ss:Type="String">${xEsc(r.tier||"")}</Data></Cell><Cell ss:StyleID="${sid}"><Data ss:Type="String">${xEsc(r.nearestMarket||r.market||"")}</Data></Cell><Cell ss:StyleID="${sid}-n"><Data ss:Type="${dist===""?"String":"Number"}">${dist}</Data></Cell><Cell ss:StyleID="${sid}"><Data ss:Type="String">${xEsc(r.zip||"")}</Data></Cell><Cell ss:StyleID="${sid}-n"><Data ss:Type="${r.lat?"Number":"String"}">${r.lat||""}</Data></Cell><Cell ss:StyleID="${sid}-n"><Data ss:Type="${r.lon?"Number":"String"}">${r.lon||""}</Data></Cell><Cell ss:StyleID="${sid}"><Data ss:Type="String">${xEsc(sm)}</Data></Cell>${hasSp?`<Cell ss:StyleID="${sid}-n"><Data ss:Type="${r.spend?"Number":"String"}">${r.spend||""}</Data></Cell>`:""}</Row>`);
+    return `<Row><Cell ss:StyleID="${sid}"><Data ss:Type="String">${xEsc(r.addr||"")}</Data></Cell><Cell ss:StyleID="${sid}-b"><Data ss:Type="String">${xEsc(r.tier||"")}</Data></Cell><Cell ss:StyleID="${sid}"><Data ss:Type="String">${xEsc(r.nearestMarket||r.market||"")}</Data></Cell><Cell ss:StyleID="${sid}-n"><Data ss:Type="${dist===""?"String":"Number"}">${dist}</Data></Cell><Cell ss:StyleID="${sid}"><Data ss:Type="String">${xEsc(r.zip||"")}</Data></Cell><Cell ss:StyleID="${sid}"><Data ss:Type="String">${xEsc(r.state||"")}</Data></Cell><Cell ss:StyleID="${sid}-n"><Data ss:Type="${Number.isFinite(r.lat)?"Number":"String"}">${Number.isFinite(r.lat)?r.lat:""}</Data></Cell><Cell ss:StyleID="${sid}-n"><Data ss:Type="${Number.isFinite(r.lon)?"Number":"String"}">${Number.isFinite(r.lon)?r.lon:""}</Data></Cell><Cell ss:StyleID="${sid}"><Data ss:Type="String">${xEsc(sm)}</Data></Cell>${hasSp?`<Cell ss:StyleID="${sid}-n"><Data ss:Type="${r.spend?"Number":"String"}">${r.spend||""}</Data></Cell>`:""}</Row>`;
+  }
+
+  // All Locations sheet (with AutoFilter)
+  const allLoc=results.slice();
+  const allRows=[...brandHeader(`All locations — ${tot} total · use the AutoFilter ▼ on column "Tier" to pick a coverage type`, ncols), baseHdr, ...allLoc.map(rowFor)];
+  const allHdrRow=brandHeader("", ncols).length+1; // row number where headers sit (1-based)
+  const allLastRow=allHdrRow+allLoc.length;
+  const allAutoFilter=`<AutoFilter x:Range="R${allHdrRow}C1:R${allLastRow}C${ncols}" xmlns="urn:schemas-microsoft-com:office:excel"/>`;
+
+  // Per-tier sheets (so user can click a sheet tab to "filter")
+  const tierOrder=["Core Market","Adjacent Market","Segmented Market","Expansion Market","Out of Coverage","Non-compliant"];
+  const tierSheets=tierOrder.map(t=>{
+    const ls=results.filter(r=>r.tier===t);
+    const sub=`${t} — ${ls.length} location${ls.length===1?"":"s"}${ls.length?"  ·  click any other tab below to switch tier":"  ·  no locations in this tier"}`;
+    const rows=[...brandHeader(sub, ncols), baseHdr, ...ls.map(rowFor)];
+    return {name:tierAbbr[t], xml:rows.join("\n"), color:tierFg[t]};
   });
 
   // ── Market breakdown sheet ──
   const byM={};results.forEach(r=>{const m=r.nearestMarket||r.market;if(m){(byM[m]=byM[m]||[]).push(r);}});
   const mE=Object.entries(byM).sort((a,b)=>b[1].length-a[1].length);
-  const mRows=[`<Row><Cell ss:StyleID="hdr"><Data ss:Type="String">Market</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Locations</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Tiers</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Spend ($)</Data></Cell></Row>`];
+  const mRows=[...brandHeader("Locations grouped by nearest market",4),
+    `<Row><Cell ss:StyleID="hdr"><Data ss:Type="String">Market</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Locations</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Tiers</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Spend ($)</Data></Cell></Row>`];
   mE.forEach(([m,ls])=>{
     const tiers=[...new Set(ls.map(r=>r.tier))].join(", ");
     const sp=ls.reduce((s,r)=>s+(r.spend||0),0);
     mRows.push(`<Row><Cell ss:StyleID="cell"><Data ss:Type="String">${xEsc(m)}</Data></Cell><Cell ss:StyleID="cell-n"><Data ss:Type="Number">${ls.length}</Data></Cell><Cell ss:StyleID="cell"><Data ss:Type="String">${xEsc(tiers)}</Data></Cell><Cell ss:StyleID="cell-n"><Data ss:Type="${sp?"Number":"String"}">${sp||""}</Data></Cell></Row>`);
   });
 
-  // ── Compose styles ──
+  // ── Compose tier styles ──
   const tierStyles=Object.entries(tierBg).map(([t,bg])=>{
     const fg=tierFg[t];const sid="t-"+t.replace(/[^a-z]/gi,"");const rid="row-"+t.replace(/[^a-z]/gi,"");
     return `
 <Style ss:ID="${sid}"><Font ss:Color="${fg}" ss:Bold="1"/><Interior ss:Color="${bg}" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Color="#FFFFFF"/></Borders></Style>
+<Style ss:ID="${sid}-link"><Font ss:Color="${fg}" ss:Bold="1" ss:Underline="Single"/><Interior ss:Color="${bg}" ss:Pattern="Solid"/></Style>
 <Style ss:ID="${sid}-n"><Font ss:Color="${fg}" ss:Bold="1"/><Interior ss:Color="${bg}" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0"/><Alignment ss:Horizontal="Right"/></Style>
 <Style ss:ID="${sid}-p"><Font ss:Color="${fg}" ss:Bold="1"/><Interior ss:Color="${bg}" ss:Pattern="Solid"/><NumberFormat ss:Format="0%"/><Alignment ss:Horizontal="Right"/></Style>
 <Style ss:ID="${rid}"><Interior ss:Color="${bg}" ss:Pattern="Solid"/></Style>
@@ -937,30 +985,49 @@ function dlXls(){
 <Style ss:ID="${rid}-n"><Interior ss:Color="${bg}" ss:Pattern="Solid"/><Alignment ss:Horizontal="Right"/><NumberFormat ss:Format="#,##0.####"/></Style>`;
   }).join("");
 
+  // ── Column widths for the locations-style sheets ──
+  const locCols=`<Column ss:Width="220"/><Column ss:Width="140"/><Column ss:Width="150"/><Column ss:Width="90"/><Column ss:Width="65"/><Column ss:Width="55"/><Column ss:Width="75"/><Column ss:Width="75"/><Column ss:Width="220"/>${hasSp?'<Column ss:Width="90"/>':""}`;
+
   const xml=`<?xml version="1.0"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">
 <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office"><Title>Coverage Analysis — ${xEsc(form.clientName||"")}</Title><Author>Indeed Flex Coverage Tool</Author><Created>${new Date().toISOString()}</Created></DocumentProperties>
 <Styles>
 <Style ss:ID="Default" ss:Name="Normal"><Font ss:FontName="Calibri" ss:Size="11"/><Alignment ss:Vertical="Center"/></Style>
+<Style ss:ID="brand"><Font ss:FontName="Calibri" ss:Size="18" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1A0533" ss:Pattern="Solid"/><Alignment ss:Vertical="Center" ss:Horizontal="Left"/></Style>
+<Style ss:ID="brandsub"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FF2D78"/><Interior ss:Color="#2B0A4F" ss:Pattern="Solid"/><Alignment ss:Vertical="Center" ss:Horizontal="Left"/></Style>
 <Style ss:ID="title"><Font ss:FontName="Calibri" ss:Size="16" ss:Bold="1" ss:Color="#E8175D"/></Style>
-<Style ss:ID="hdr"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1A0533" ss:Pattern="Solid"/><Alignment ss:Horizontal="Left"/></Style>
-<Style ss:ID="kv-k"><Font ss:Bold="1" ss:Color="#666666"/></Style>
-<Style ss:ID="kv-v"><Font ss:Bold="1"/></Style>
+<Style ss:ID="hdr"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1A0533" ss:Pattern="Solid"/><Alignment ss:Horizontal="Left"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Color="#E8175D" ss:Weight="2"/></Borders></Style>
+<Style ss:ID="kv-k"><Font ss:Bold="1" ss:Color="#666666" ss:Size="10"/></Style>
+<Style ss:ID="kv-v"><Font ss:Bold="1" ss:Size="11"/></Style>
+<Style ss:ID="kv-vbig"><Font ss:Bold="1" ss:Size="14" ss:Color="#E8175D"/><NumberFormat ss:Format="0%"/></Style>
+<Style ss:ID="link"><Font ss:Bold="1" ss:Size="12" ss:Color="#E8175D" ss:Underline="Single"/></Style>
+<Style ss:ID="hint"><Font ss:Italic="1" ss:Color="#666666" ss:Size="10"/></Style>
+<Style ss:ID="footnote"><Font ss:Italic="1" ss:Color="#888888" ss:Size="10"/><Alignment ss:WrapText="1"/></Style>
 <Style ss:ID="cell"></Style>
 <Style ss:ID="cell-n"><Alignment ss:Horizontal="Right"/><NumberFormat ss:Format="#,##0.####"/></Style>
 ${tierStyles}
 </Styles>
 <Worksheet ss:Name="Summary"><Table>
-<Column ss:Width="160"/><Column ss:Width="100"/><Column ss:Width="100"/><Column ss:Width="100"/>
+<Column ss:Width="220"/><Column ss:Width="130"/><Column ss:Width="160"/><Column ss:Width="130"/>
 ${summaryRows.join("\n")}
-</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>6</SplitHorizontal><TopRowBottomPane>6</TopRowBottomPane></WorksheetOptions></Worksheet>
-<Worksheet ss:Name="Locations"><Table>
-<Column ss:Width="220"/><Column ss:Width="130"/><Column ss:Width="140"/><Column ss:Width="90"/><Column ss:Width="65"/><Column ss:Width="75"/><Column ss:Width="75"/><Column ss:Width="200"/>${hasSp?'<Column ss:Width="90"/>':""}
-${locRows.join("\n")}
-</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane></WorksheetOptions></Worksheet>
-<Worksheet ss:Name="Markets"><Table>
-<Column ss:Width="180"/><Column ss:Width="90"/><Column ss:Width="280"/><Column ss:Width="100"/>
+</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><DoNotDisplayGridlines/><FreezePanes/><FrozenNoSplit/><SplitHorizontal>3</SplitHorizontal><TopRowBottomPane>3</TopRowBottomPane></WorksheetOptions></Worksheet>
+<Worksheet ss:Name="All Locations"><Table>
+${locCols}
+${allRows.join("\n")}
+</Table>
+${allAutoFilter}
+<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>${allHdrRow}</SplitHorizontal><TopRowBottomPane>${allHdrRow}</TopRowBottomPane></WorksheetOptions></Worksheet>
+${tierSheets.map(s=>{
+  const tabHdrRow=brandHeader("",ncols).length+1;
+  return `<Worksheet ss:Name="${s.name}"><Table>
+${locCols}
+${s.xml}
+</Table>
+<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>${tabHdrRow}</SplitHorizontal><TopRowBottomPane>${tabHdrRow}</TopRowBottomPane></WorksheetOptions></Worksheet>`;
+}).join("\n")}
+<Worksheet ss:Name="By Market"><Table>
+<Column ss:Width="200"/><Column ss:Width="100"/><Column ss:Width="320"/><Column ss:Width="120"/>
 ${mRows.join("\n")}
 </Table></Worksheet>
 </Workbook>`;
