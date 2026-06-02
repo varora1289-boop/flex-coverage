@@ -157,7 +157,39 @@ pre.slkpre{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.0
 .sitd{position:absolute;top:7px;right:7px;background:none;border:none;color:rgba(255,255,255,.18);cursor:pointer;font-size:15px;line-height:1;padding:2px;transition:color .15s}
 .sitd:hover{color:rgba(255,255,255,.45)}
 
-@media(max-width:680px){.fg2,.fg3,.scores,.bkg{grid-template-columns:1fr}#wrap.ws{grid-template-columns:1fr}#sidebar{display:none!important}.intake-hero,.intake-body{padding:20px}}
+.tabt.dl{color:var(--pink2);border-bottom:none;font-size:12px;padding:13px 14px}
+.tabt.dl:hover{color:var(--pink);background:rgba(232,23,93,.06)}
+
+.hp-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px}
+.hp-search{flex:1;min-width:200px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:7px;padding:8px 12px;color:#fff;font-size:12px;font-family:inherit;outline:none}
+.hp-search:focus{border-color:var(--pink)}
+.hp-filter{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:7px;padding:8px 10px;color:#fff;font-size:12px;font-family:inherit;cursor:pointer;outline:none}
+.hp-filter option{background:#1a0533}
+.hp-filter:focus{border-color:var(--pink)}
+.hp-stats{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:rgba(255,255,255,.5);padding:2px 4px}
+.hp-stats b{color:#fff;font-weight:700}
+.hp-empty{padding:50px 20px;text-align:center;color:rgba(255,255,255,.3);font-size:13px}
+.hp-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.hp-table thead th{position:sticky;top:0;background:rgba(26,5,51,.95);backdrop-filter:blur(6px);z-index:5;padding:11px 12px;text-align:left;font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.32);border-bottom:1px solid rgba(255,255,255,.08)}
+.hp-table tbody tr{border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:background .12s}
+.hp-table tbody tr:hover{background:rgba(232,23,93,.07)}
+.hp-table td{padding:11px 12px;color:rgba(255,255,255,.7);vertical-align:middle}
+.hp-table td.r{text-align:right;font-variant-numeric:tabular-nums}
+.hp-table .miniBar{display:inline-flex;gap:1px;align-items:center;vertical-align:middle}
+.hp-table .miniBar span{display:inline-block;height:14px;border-radius:1px}
+.hp-table .repTag{background:rgba(232,23,93,.13);color:var(--pink2);border-radius:14px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap}
+.hp-table .stPill{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.1)}
+.hp-table .clientCol{font-weight:700;color:#fff}
+.hp-table .dateCol{color:rgba(255,255,255,.42);font-size:11px;white-space:nowrap}
+
+.dayHeader{font-size:10px;font-weight:700;color:rgba(232,23,93,.7);letter-spacing:.14em;text-transform:uppercase;padding:18px 12px 8px;border-bottom:1px solid rgba(232,23,93,.15);background:rgba(232,23,93,.04)}
+
+#sheet-modal{position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center}
+.modal-back{position:absolute;inset:0;background:rgba(15,5,40,.75);backdrop-filter:blur(4px)}
+.modal-card{position:relative;background:linear-gradient(135deg,#231138 0%,#1a0533 100%);border:1px solid rgba(232,23,93,.3);border-radius:14px;padding:26px 30px;max-width:620px;width:90vw;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal-card code{font-family:'SF Mono',Menlo,monospace;font-size:11px}
+
+@media(max-width:680px){.fg2,.fg3,.scores,.bkg{grid-template-columns:1fr}#wrap.ws{grid-template-columns:1fr}#sidebar{display:none!important}.intake-hero,.intake-body{padding:20px}.hp-table thead th:nth-child(n+5),.hp-table td:nth-child(n+5){display:none}}
 </style>
 </head>
 <body>
@@ -172,8 +204,11 @@ pre.slkpre{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.0
   </div>
   <div class="hdr-btns">
     <button class="btn-ghost" id="backBtn" onclick="goIntake()" style="display:none">← New analysis</button>
-    <button class="btn-ghost" id="histBtn" onclick="toggleSide()">
-      History <span class="hbadge" id="hcnt" style="display:none">0</span>
+    <button class="btn-ghost" id="allBtn" onclick="showAllAnalyses()" title="All analyses logged on this server, filterable by sales rep, client, and date">
+      ◇ All Analyses <span class="hbadge" id="allcnt" style="display:none">0</span>
+    </button>
+    <button class="btn-ghost" id="histBtn" onclick="toggleSide()" title="Analyses saved in this browser">
+      Recent <span class="hbadge" id="hcnt" style="display:none">0</span>
     </button>
   </div>
 </div>
@@ -233,12 +268,79 @@ pre.slkpre{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.0
         <button class="tabt" id="tab-table" onclick="sw('table')">≡ Locations</button>
         <button class="tabt" id="tab-breakdown" onclick="sw('breakdown')">◕ Breakdown</button>
         <button class="tabt" id="tab-slack" onclick="sw('slack')"># Slack</button>
+        <div style="flex:1"></div>
+        <button class="tabt dl" onclick="dlHtmlReport()" title="Self-contained HTML report (interactive map + clickable filters)" style="color:var(--pink2)">↓ Report (HTML)</button>
+        <button class="tabt dl" onclick="dlXls()" title="Color-coded spreadsheet — opens in Excel and Google Sheets" style="color:var(--pink2)">↓ Spreadsheet</button>
       </div>
       <div class="tabbody">
         <div id="pane-map"></div>
         <div id="pane-table" style="display:none"></div>
         <div id="pane-breakdown" style="display:none"></div>
         <div id="pane-slack" style="display:none"></div>
+      </div>
+    </div>
+
+    <div id="history-page" style="display:none">
+      <div class="card">
+        <div class="intake-hero" style="padding:22px 28px">
+          <h1>All <span>Analyses</span></h1>
+          <p>Every coverage analysis logged on this server, by sales rep · client · date</p>
+        </div>
+        <div class="intake-body" style="gap:14px">
+          <div class="hp-toolbar">
+            <input id="hp-search" class="hp-search" placeholder="Search client, rep, status…" oninput="rdrHistoryPage()"/>
+            <select id="hp-rep" class="hp-filter" onchange="rdrHistoryPage()"><option value="">All sales reps</option></select>
+            <select id="hp-range" class="hp-filter" onchange="rdrHistoryPage()">
+              <option value="">Any time</option>
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+              <option value="365">Last 12 months</option>
+            </select>
+            <select id="hp-sort" class="hp-filter" onchange="rdrHistoryPage()">
+              <option value="date-desc">Newest first</option>
+              <option value="date-asc">Oldest first</option>
+              <option value="client">Client A→Z</option>
+              <option value="rep">Sales rep A→Z</option>
+              <option value="locations">Most locations</option>
+              <option value="spend">Highest spend</option>
+            </select>
+            <div style="flex:1"></div>
+            <button class="btn-s" onclick="loadAllAnalyses()" title="Re-fetch from server">↻ Refresh</button>
+            <a class="btn-s" href="/api/logs.csv" download>↓ Download all (CSV)</a>
+            <button class="btn-s" onclick="showSheetSetup()" title="Configure cross-user persistence via a Google Sheet">⚙ Google Sheet sync…</button>
+          </div>
+          <div id="hp-stats" class="hp-stats"></div>
+          <div id="hp-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="sheet-modal" style="display:none">
+      <div class="modal-back" onclick="hideSheetSetup()"></div>
+      <div class="modal-card">
+        <h3 style="font-size:18px;margin-bottom:6px">Sync analyses to a Google Sheet</h3>
+        <p style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:16px">Render's free tier wipes the on-server log every time the service restarts. For permanent cross-user history, point this site at a Google Sheets Apps Script webhook — every analysis will append a row to your sheet automatically.</p>
+        <ol style="font-size:12.5px;line-height:1.85;color:rgba(255,255,255,.7);padding-left:18px">
+          <li>Open a Google Sheet → <b>Extensions → Apps Script</b>.</li>
+          <li>Paste this code, save, then <b>Deploy → New deployment → Web app</b> (Execute as: Me · Access: Anyone).<br/><pre style="background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:10px;margin-top:6px;font-size:11px;overflow:auto;color:#c7e7c2">function doPost(e){
+  const sh=SpreadsheetApp.getActive().getSheetByName('Analyses')
+    ||SpreadsheetApp.getActive().insertSheet('Analyses');
+  if(sh.getLastRow()===0)sh.appendRow(['Date','Sales Rep','Client','Status',
+    'Go-Live','Total','Core','Adj','Seg','Exp','OOC','NC','Spend','Svc %','ID']);
+  const d=JSON.parse(e.postData.contents);
+  sh.appendRow([d.date,d.salesRep,d.clientName,d.clientStatus,d.goLive,
+    d.total,d.core,d.adjacent,d.segmented,d.expansion,d.outOf,d.nonComp,
+    d.totalSpend,d.serviceablePct,d.analysisId]);
+  return ContentService.createTextOutput(JSON.stringify({ok:true}));
+}</pre></li>
+          <li>Copy the deployment URL.</li>
+          <li>On Render → Service → <b>Environment</b> → add variable <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:3px">SHEETS_WEBHOOK_URL</code> = the URL above, then redeploy.</li>
+        </ol>
+        <p style="font-size:11px;color:rgba(255,255,255,.35);margin-top:14px">Once set, every analysis runs <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:3px">POST /api/log</code> here, which forwards to your sheet. The sheet becomes the durable source of truth.</p>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px">
+          <button class="btn-s" onclick="hideSheetSetup()">Got it</button>
+        </div>
       </div>
     </div>
 
@@ -392,7 +494,7 @@ async function doRun(){
   const c=cntR(out);const totSpend=out.reduce((s,r)=>s+r.spend,0);
   const logEntry={id:Date.now(),clientName:form.clientName,requester:form.requester,goLive:form.goLive,clientStatus:form.clientStatus,date:new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}),results:out,total:out.length,core:c.core,adjacent:c.adjacent,segmented:c.segmented,expansion:c.expansion,outOf:c.outOf,nonComp:c.nonComp,totalSpend:totSpend};
   saveH(logEntry);
-  try{fetch("/api/log",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(logEntry)}).catch(()=>{});}catch(_){}
+  try{fetch("/api/log",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(logEntry)}).then(()=>loadAllAnalyses({silent:true})).catch(()=>{});}catch(_){}
 }
 
 function showRes(){document.getElementById("loading").style.display="none";document.getElementById("results").style.display="block";rdrBar();rdrScores();sw("map");}
@@ -528,16 +630,346 @@ function enrichResults(rs){if(!Array.isArray(rs))return rs;return rs.map(r=>{if(
 
 function ldEntry(id){const h=saved.find(x=>x.id===id);if(!h)return;tierFilter=null;results=enrichResults(h.results||[]);form={clientName:h.clientName,requester:h.requester||"",goLive:h.goLive||"",clientStatus:h.clientStatus||""};document.getElementById("intake").style.display="none";document.getElementById("backBtn").style.display="flex";showRes();}
 function dlEntry(id){saved=saved.filter(x=>x.id!==id);localStorage.setItem(SK,JSON.stringify(saved));rdrSide();updB();}
-function goIntake(){tierFilter=null;document.getElementById("intake").style.display="block";document.getElementById("results").style.display="none";document.getElementById("loading").style.display="none";document.getElementById("backBtn").style.display="none";}
+function goIntake(){tierFilter=null;document.getElementById("intake").style.display="block";document.getElementById("results").style.display="none";document.getElementById("loading").style.display="none";document.getElementById("history-page").style.display="none";document.getElementById("backBtn").style.display="none";}
 function showErr(msg){const e=document.getElementById("err");e.textContent=msg;e.style.display="block";}
 function hideErr(){document.getElementById("err").style.display="none";}
 function loadSample(){document.getElementById("raw").value="CITY\tSTATE\tZIP\tSPEND\nATLANTA\tGA\t30303\t$2,000\nCHARLOTTE\tNC\t28202\t$2,000\nIRVINE\tCA\t92630\t$1,000\nSAN ANTONIO\tTX\t78201\t$1,000\nTEMPE\tAZ\t85281\t$1,000\nORLANDO\tFL\t32801\t$1,000\nINDIANAPOLIS\tIN\t46204\t$1,000\nBOSTON\tMA\t02108\t$1,000";}
 
 // fix scorecard top bar via JS (CSS ::before can't be set inline)
 function fixScores(){document.querySelectorAll(".sc").forEach((el,i)=>{el.style.borderTop=`3px solid ${SHEX[i]}`;});}
-document.addEventListener("DOMContentLoaded",()=>{updB();rdrSide();});
+document.addEventListener("DOMContentLoaded",()=>{updB();rdrSide();loadAllAnalyses({silent:true});});
 // override to fix after render
 const origRdrScores=rdrScores;
+
+/* ─── All Analyses page (server-side log of every run) ─── */
+let allAnalyses=[];
+let allLoading=false;
+
+async function loadAllAnalyses(opts){
+  opts=opts||{};
+  if(allLoading)return;
+  allLoading=true;
+  try{
+    const r=await fetch("/api/logs/summary",{cache:"no-store"});
+    if(r.ok){
+      allAnalyses=await r.json();
+      const b=document.getElementById("allcnt");
+      if(b){b.textContent=allAnalyses.length;b.style.display=allAnalyses.length?"":"none";}
+      if(!opts.silent)rdrHistoryPage();
+    }
+  }catch(_){}
+  finally{allLoading=false;}
+}
+
+function showAllAnalyses(){
+  document.getElementById("intake").style.display="none";
+  document.getElementById("loading").style.display="none";
+  document.getElementById("results").style.display="none";
+  document.getElementById("history-page").style.display="block";
+  document.getElementById("backBtn").style.display="flex";
+  loadAllAnalyses();
+}
+
+function rdrHistoryPage(){
+  // Populate sales rep dropdown options first time
+  const repSel=document.getElementById("hp-rep");
+  if(repSel){
+    const reps=[...new Set(allAnalyses.map(a=>a.salesRep).filter(Boolean))].sort();
+    const cur=repSel.value;
+    repSel.innerHTML='<option value="">All sales reps</option>'+reps.map(r=>`<option value="${r}"${r===cur?" selected":""}>@${r}</option>`).join("");
+  }
+  const q=(document.getElementById("hp-search").value||"").trim().toLowerCase();
+  const rep=document.getElementById("hp-rep").value;
+  const range=document.getElementById("hp-range").value;
+  const sort=document.getElementById("hp-sort").value;
+  const cutoff=range?Date.now()-parseInt(range,10)*86400000:0;
+
+  let list=allAnalyses.filter(a=>!a.error);
+  if(q)list=list.filter(a=>(a.clientName||"").toLowerCase().includes(q)||(a.salesRep||"").toLowerCase().includes(q)||(a.clientStatus||"").toLowerCase().includes(q));
+  if(rep)list=list.filter(a=>a.salesRep===rep);
+  if(cutoff)list=list.filter(a=>{const t=Date.parse(a.date||"");return Number.isFinite(t)&&t>=cutoff;});
+
+  const cmp={
+    "date-desc":(a,b)=>(Date.parse(b.date)||0)-(Date.parse(a.date)||0),
+    "date-asc":(a,b)=>(Date.parse(a.date)||0)-(Date.parse(b.date)||0),
+    "client":(a,b)=>(a.clientName||"").localeCompare(b.clientName||""),
+    "rep":(a,b)=>(a.salesRep||"").localeCompare(b.salesRep||""),
+    "locations":(a,b)=>(b.total||0)-(a.total||0),
+    "spend":(a,b)=>(b.totalSpend||0)-(a.totalSpend||0),
+  }[sort]||((a,b)=>0);
+  list.sort(cmp);
+
+  // Aggregate stats
+  const totLocs=list.reduce((s,a)=>s+(a.total||0),0);
+  const totSpend=list.reduce((s,a)=>s+(a.totalSpend||0),0);
+  const repCount=new Set(list.map(a=>a.salesRep).filter(Boolean)).size;
+  const clientCount=new Set(list.map(a=>a.clientName).filter(Boolean)).size;
+  document.getElementById("hp-stats").innerHTML=
+    `<div><b>${list.length}</b> analyses</div>`+
+    `<div><b>${clientCount}</b> clients</div>`+
+    `<div><b>${repCount}</b> sales reps</div>`+
+    `<div><b>${totLocs.toLocaleString()}</b> total locations</div>`+
+    (totSpend?`<div><b>$${totSpend.toLocaleString()}</b> total temp spend</div>`:"");
+
+  if(!list.length){
+    document.getElementById("hp-body").innerHTML=`<div class="hp-empty">${allAnalyses.length?"No analyses match your filters.":"No analyses logged on this server yet. Run an analysis to start the log."}</div>`;
+    return;
+  }
+
+  // Build table with date-group headers when sorted by date
+  const groupByDate=sort.startsWith("date");
+  const fmtDay=d=>{if(!d)return"—";const dt=new Date(d);if(isNaN(dt))return"—";return dt.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"});};
+  const fmtTime=d=>{if(!d)return"";const dt=new Date(d);if(isNaN(dt))return"";return dt.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});};
+  const tiers=[
+    {k:"core",c:"#00C875",ab:"C"},{k:"adjacent",c:"#4B8EF5",ab:"A"},
+    {k:"segmented",c:"#00C4B4",ab:"S"},{k:"expansion",c:"#B57BFF",ab:"E"},
+    {k:"outOf",c:"#FF9F43",ab:"O"},{k:"nonComp",c:"#FF6B6B",ab:"N"},
+  ];
+  const miniBar=a=>{const tot=a.total||1;return tiers.map(t=>{const v=a[t.k]||0;if(!v)return"";const w=Math.max(2,Math.round(v/tot*80));return`<span title="${t.k}: ${v}" style="width:${w}px;background:${t.c}"></span>`;}).join("");};
+  const fmtSpend=v=>v?"$"+v.toLocaleString():"—";
+  const fmtPct=p=>{const c=p>=70?"#00C875":p>=40?"#4B8EF5":p>=20?"#FF9F43":"#FF6B6B";return`<span style="color:${c};font-weight:700">${p}%</span>`;};
+
+  let html=`<div class="twrap" style="max-height:65vh;overflow-y:auto"><table class="hp-table"><thead><tr>
+    <th>Date</th><th>Sales rep</th><th>Client</th><th>Status</th><th>Go-live</th>
+    <th class="r">Locations</th><th>Mix</th><th class="r">Svc %</th><th class="r">Spend</th>
+  </tr></thead><tbody>`;
+  let curDay="";
+  for(const a of list){
+    if(groupByDate){
+      const day=a.date?new Date(a.date).toDateString():"";
+      if(day&&day!==curDay){curDay=day;html+=`<tr><td colspan="9" class="dayHeader">${fmtDay(a.date)}</td></tr>`;}
+    }
+    html+=`<tr onclick="openAnalysis('${(a.filename||"").replace(/'/g,"\\'")}')">
+      <td class="dateCol">${fmtTime(a.date)||a.displayDate||"—"}</td>
+      <td>${a.salesRep?`<span class="repTag">@${a.salesRep}</span>`:'<span style="color:rgba(255,255,255,.25)">—</span>'}</td>
+      <td class="clientCol">${escapeHtml(a.clientName||"Unnamed")}</td>
+      <td>${a.clientStatus?`<span class="stPill">${escapeHtml(a.clientStatus)}</span>`:""}</td>
+      <td style="color:rgba(255,255,255,.4)">${a.goLive||""}</td>
+      <td class="r" style="font-weight:700">${(a.total||0).toLocaleString()}</td>
+      <td><div class="miniBar">${miniBar(a)}</div></td>
+      <td class="r">${fmtPct(a.serviceablePct||0)}</td>
+      <td class="r" style="color:rgba(255,255,255,.55);font-weight:600">${fmtSpend(a.totalSpend||0)}</td>
+    </tr>`;
+  }
+  html+=`</tbody></table></div>`;
+  document.getElementById("hp-body").innerHTML=html;
+}
+
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+
+async function openAnalysis(filename){
+  if(!filename)return;
+  try{
+    const r=await fetch("/api/logs/"+encodeURIComponent(filename),{cache:"no-store"});
+    if(!r.ok){alert("Could not load analysis (server returned "+r.status+")");return;}
+    const e=await r.json();
+    tierFilter=null;
+    results=enrichResults(e.results||[]);
+    form={clientName:e.clientName||"Unnamed",requester:e.requester||"",goLive:e.goLive||"",clientStatus:e.clientStatus||""};
+    document.getElementById("history-page").style.display="none";
+    document.getElementById("intake").style.display="none";
+    document.getElementById("backBtn").style.display="flex";
+    showRes();
+  }catch(err){alert("Could not load analysis: "+err.message);}
+}
+
+function showSheetSetup(){document.getElementById("sheet-modal").style.display="flex";}
+function hideSheetSetup(){document.getElementById("sheet-modal").style.display="none";}
+
+/* ─── Self-contained HTML report download (interactive map + clickable filters) ─── */
+function dlHtmlReport(){
+  const payload={
+    form:form,
+    results:results,
+    hubs:HUBS,
+    generatedAt:new Date().toISOString(),
+    tc:TC,
+    sLbl:SLBL,
+    sMod:SMOD,
+    sHex:SHEX,
+  };
+  const json=JSON.stringify(payload).replace(/<\/script/gi,"<\\/script");
+  const safeClient=(form.clientName||"analysis").replace(/[^a-zA-Z0-9-]/g,"-").toLowerCase();
+  const html=`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Coverage Report — ${escapeHtml(form.clientName||"Analysis")}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--navy:#1a0533;--pink:#e8175d;--pink2:#ff2d78;--purple2:#8b5cf6}
+html,body{background:var(--navy);color:#fff;font-family:'Space Grotesk',system-ui,sans-serif;line-height:1.5}
+#hdr{background:linear-gradient(135deg,#3b0764 0%,#1e1b4b 50%,#0f172a 100%);padding:18px 32px;border-bottom:1px solid rgba(232,23,93,.25);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.logomark{width:34px;height:34px;background:linear-gradient(135deg,var(--pink),var(--purple2));border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;font-style:italic;margin-right:10px;vertical-align:middle}
+#hdr h1{display:inline-block;font-size:18px;font-weight:700;vertical-align:middle}
+#hdr h1 em{color:var(--pink2);font-style:italic}
+#meta{color:rgba(255,255,255,.5);font-size:12px}
+#wrap{max-width:1100px;margin:0 auto;padding:24px}
+.cbar{background:rgba(232,23,93,.06);border:1px solid rgba(232,23,93,.15);border-radius:10px;padding:14px 18px;display:flex;gap:24px;flex-wrap:wrap;margin-bottom:14px}
+.cbar .cl{font-size:9px;font-weight:700;color:rgba(255,255,255,.3);letter-spacing:.12em;text-transform:uppercase}
+.cbar .cv{font-size:14px;font-weight:700;margin-top:1px}
+.scores{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px}
+.sc{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s}
+.sc:hover{transform:translateY(-2px)}
+.sc.dim{opacity:.35}
+.sc.act{border-color:var(--pink);box-shadow:0 0 0 1px var(--pink)}
+.sc .l{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.sc .n{font-size:32px;font-weight:700;line-height:1}
+.sc .p{font-size:11px;color:rgba(255,255,255,.4);margin-top:3px}
+.sc .m{font-size:10px;color:rgba(255,255,255,.25);margin-top:5px}
+.tabs{display:flex;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-bottom:none;border-radius:10px 10px 0 0;padding:0 4px}
+.tab{background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;padding:12px 16px;color:rgba(255,255,255,.4);cursor:pointer;font-family:inherit;font-size:13px;font-weight:600}
+.tab.on{color:var(--pink2);border-bottom-color:var(--pink)}
+.body{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-top:none;border-radius:0 0 10px 10px;padding:22px;min-height:420px}
+#map{height:520px;width:100%;border-radius:8px;overflow:hidden}
+.leg{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.05)}
+.leg .li{display:flex;align-items:center;gap:5px;font-size:11px;color:rgba(255,255,255,.5);font-weight:500;cursor:pointer}
+.dot{width:9px;height:9px;border-radius:50%}
+.fbar{font-size:12px;color:rgba(255,255,255,.5);margin-bottom:10px}
+.fbar b{color:#fff}
+.clr{background:none;border:none;color:var(--pink2);font-weight:700;cursor:pointer;font-size:11px;font-family:inherit}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;padding:10px 12px;color:rgba(255,255,255,.3);font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.06)}
+td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04);color:rgba(255,255,255,.7)}
+tr:hover td{background:rgba(255,255,255,.03)}
+.tbadge{display:inline-block;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;border:1px solid}
+.bkg{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.bkp{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:18px}
+.bkh{font-size:9px;font-weight:700;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px}
+.bar{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.bl{font-size:11px;color:rgba(255,255,255,.55);width:140px}
+.bt{flex:1;background:rgba(255,255,255,.05);border-radius:3px;height:7px;overflow:hidden}
+.bf{height:100%}
+.bn{font-size:12px;font-weight:700;min-width:55px;text-align:right}
+.foot{text-align:center;color:rgba(255,255,255,.25);font-size:11px;padding:24px}
+@media(max-width:680px){.scores{grid-template-columns:repeat(2,1fr)}.bkg{grid-template-columns:1fr}}
+</style></head><body>
+<div id="hdr"><div><span class="logomark">if</span><h1><em>indeed</em> flex — Coverage Report</h1></div><div id="meta"></div></div>
+<div id="wrap">
+  <div class="cbar" id="cbar"></div>
+  <div class="scores" id="scs"></div>
+  <div class="tabs">
+    <button class="tab on" data-tab="map">◎ Map</button>
+    <button class="tab" data-tab="table">≡ Locations</button>
+    <button class="tab" data-tab="breakdown">◕ Breakdown</button>
+  </div>
+  <div class="body" id="body"></div>
+  <div class="foot">Generated by Indeed Flex Coverage Tool · <span id="genat"></span> · Self-contained report — open offline in any browser.</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>
+<script>
+const PAYLOAD=${json};
+const TC=PAYLOAD.tc,SLBL=PAYLOAD.sLbl,SMOD=PAYLOAD.sMod,SHEX=PAYLOAD.sHex;
+const form=PAYLOAD.form,results=PAYLOAD.results,HUBS=PAYLOAD.hubs||[];
+let tierFilter=null,curTab="map",leafMap=null;
+function fmtD(mi){if(mi==null)return"—";if(mi<1)return"<1 mi";if(mi<100)return Math.round(mi)+" mi";return Math.round(mi).toLocaleString()+" mi";}
+function fmtM(n){return n?"$"+n.toLocaleString():"—";}
+function cnt(rs){return{core:rs.filter(r=>r.tier==="Core Market").length,adjacent:rs.filter(r=>r.tier==="Adjacent Market").length,segmented:rs.filter(r=>r.tier==="Segmented Market").length,expansion:rs.filter(r=>r.tier==="Expansion Market").length,outOf:rs.filter(r=>r.tier==="Out of Coverage").length,nonComp:rs.filter(r=>r.tier==="Non-compliant").length};}
+function fr(){return tierFilter?results.filter(r=>r.tier===tierFilter):results;}
+function setF(t){tierFilter=tierFilter===t?null:t;rdrScs();rdrTab();}
+function rdrMeta(){document.getElementById("meta").textContent=(form.clientName||"")+" · "+new Date(PAYLOAD.generatedAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});document.getElementById("genat").textContent=new Date(PAYLOAD.generatedAt).toLocaleString();}
+function rdrBar(){let h="<div><div class='cl'>Client</div><div class='cv'>"+(form.clientName||"")+"</div></div>";if(form.requester)h+="<div><div class='cl'>Sales rep</div><div class='cv'>@"+form.requester+"</div></div>";if(form.goLive)h+="<div><div class='cl'>Go-live</div><div class='cv'>"+form.goLive+"</div></div>";if(form.clientStatus)h+="<div><div class='cl'>Status</div><div class='cv'>"+form.clientStatus+"</div></div>";document.getElementById("cbar").innerHTML=h;}
+function rdrScs(){const c=cnt(results),tot=results.length,vals=[c.core,c.adjacent,c.segmented,c.expansion,c.outOf,c.nonComp];document.getElementById("scs").innerHTML=vals.map((n,i)=>{const t=SLBL[i];const a=tierFilter===t,d=tierFilter&&!a;return"<div class='sc"+(a?" act":"")+(d?" dim":"")+"' style='border-top:3px solid "+SHEX[i]+"' onclick=\\"setF('"+t+"')\\"><div class='l' style='color:"+SHEX[i]+"'>"+t+"</div><div class='n' style='color:"+SHEX[i]+"'>"+n+"</div><div class='p'>"+(tot?Math.round(n/tot*100):0)+"%</div><div class='m'>"+SMOD[i]+"</div></div>";}).join("");}
+function rdrTab(){if(curTab==="map")rdrMap();else if(curTab==="table")rdrTable();else rdrBk();}
+function rdrMap(){const b=document.getElementById("body");const fb=tierFilter?"<div class='fbar'>Filtered: <b style='color:"+TC[tierFilter].hex+"'>"+tierFilter+"</b> · <button class='clr' onclick=\\"setF('"+tierFilter+"')\\">clear</button></div>":"";b.innerHTML=fb+"<div id='map'></div><div class='leg' id='leg'></div>";if(leafMap){try{leafMap.remove();}catch(e){}}leafMap=null;requestAnimationFrame(()=>{const el=document.getElementById("map");leafMap=L.map(el,{scrollWheelZoom:false,preferCanvas:true}).setView([38,-96],4);L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",{attribution:"© OSM © CARTO",subdomains:"abcd",maxZoom:19}).addTo(leafMap);setTimeout(()=>leafMap.invalidateSize(),100);if(!tierFilter)HUBS.forEach(h=>L.circleMarker([h.lat,h.lon],{radius:4,fillColor:"#4B8EF5",color:"#4B8EF5",weight:1,fillOpacity:.4}).bindTooltip(h.n+" (Core hub)").addTo(leafMap));const pts=[];fr().forEach(r=>{if(!r.lat||!r.lon)return;pts.push([r.lat,r.lon]);const t=TC[r.tier]||{hex:"#888",label:r.tier};const dl=r.nearestMi!=null?"<br><span style='color:rgba(0,0,0,.6)'>Nearest core market: <b>"+(r.nearestMarket||"—")+"</b> · "+fmtD(r.nearestMi)+"</span>":"";L.circleMarker([r.lat,r.lon],{radius:9,fillColor:t.hex,color:"#1a0533",weight:2,fillOpacity:.95}).bindPopup("<b>"+r.addr+"</b><br><span style='color:"+t.hex+"'>"+t.label+"</span>"+(r.market?"<br><small>"+r.market+"</small>":"")+dl).addTo(leafMap);});if(pts.length)try{leafMap.fitBounds(pts,{padding:[30,30],maxZoom:10});}catch(e){}document.getElementById("leg").innerHTML=Object.entries(TC).map(([t,v])=>"<div class='li' onclick=\\"setF('"+t+"')\\"><div class='dot' style='background:"+v.hex+"'></div>"+v.label+"</div>").join("")+(HUBS.length&&!tierFilter?"<div class='li'><div class='dot' style='background:#4B8EF5;opacity:.4'></div>Core market hub</div>":"");});}
+function rdrTable(){const v=fr(),hs=v.some(r=>r.spend>0);const fb=tierFilter?"<div class='fbar'>Showing <b>"+v.length+"</b> of "+results.length+" · <b style='color:"+TC[tierFilter].hex+"'>"+tierFilter+"</b> · <button class='clr' onclick=\\"setF('"+tierFilter+"')\\">clear</button></div>":"";const rows=v.map(r=>{const t=TC[r.tier]||{hex:"#888",bg:"rgba(136,136,136,.1)",bd:"rgba(136,136,136,.2)",label:r.tier};const dc=r.nearestMi!=null?"<b>"+fmtD(r.nearestMi)+"</b>"+(r.nearestMarket?"<br><span style='font-size:10px;color:rgba(255,255,255,.3)'>"+r.nearestMarket+"</span>":""):(r.nearestMarket||r.market||"—");return"<tr><td>"+r.addr+"</td><td><span class='tbadge' style='background:"+t.bg+";color:"+t.hex+";border-color:"+t.bd+"'>"+t.label+"</span></td><td>"+dc+"</td><td style='color:rgba(255,255,255,.3);font-size:11px'>"+(r.zip||"—")+"</td>"+(hs?"<td style='text-align:right;font-weight:600'>"+fmtM(r.spend)+"</td>":"")+"</tr>";}).join("");document.getElementById("body").innerHTML=fb+"<div style='overflow-x:auto'><table><thead><tr><th>Address</th><th>Tier</th><th>Nearest core market · dist</th><th>ZIP</th>"+(hs?"<th style='text-align:right'>Spend</th>":"")+"</tr></thead><tbody>"+rows+"</tbody></table></div>";}
+function rdrBk(){const v=fr(),c=cnt(v),tot=v.length;const fb=tierFilter?"<div class='fbar'>Showing <b>"+v.length+"</b> of "+results.length+" · <b style='color:"+TC[tierFilter].hex+"'>"+tierFilter+"</b> · <button class='clr' onclick=\\"setF('"+tierFilter+"')\\">clear</button></div>":"";const byM={};v.forEach(r=>{const m=r.nearestMarket||r.market;if(m){(byM[m]=byM[m]||[]).push(r);}});const mE=Object.entries(byM).sort((a,b)=>b[1].length-a[1].length).slice(0,10);const mx=mE[0]?mE[0][1].length:1;const data=[{t:"Core Market",n:c.core,c:"#00C875"},{t:"Adjacent Market",n:c.adjacent,c:"#4B8EF5"},{t:"Segmented Market",n:c.segmented,c:"#00C4B4"},{t:"Expansion Market",n:c.expansion,c:"#B57BFF"},{t:"Out of Coverage",n:c.outOf,c:"#FF9F43"},{t:"Non-compliant",n:c.nonComp,c:"#FF6B6B"}].filter(d=>d.n>0);const totSp=v.reduce((s,r)=>s+(r.spend||0),0),hs=totSp>0;const sBT=data.map(d=>({...d,sp:v.filter(r=>r.tier===d.t).reduce((s,r)=>s+(r.spend||0),0)}));const dBT=data.map(d=>{const ls=v.filter(r=>r.tier===d.t&&r.nearestMi!=null);const avg=ls.length?ls.reduce((s,r)=>s+r.nearestMi,0)/ls.length:null;return{...d,avgMi:avg};});const distP="<div class='bkp'><div class='bkh'>Avg distance to nearest Core Market</div>"+dBT.map(d=>"<div class='bar'><div class='bl' style='color:"+d.c+"'>"+d.t+"</div><div class='bt'><div class='bf' style='width:"+(d.avgMi!=null?Math.min(100,Math.round(d.avgMi/300*100)):0)+"%;background:"+d.c+"'></div></div><div class='bn' style='color:"+d.c+"'>"+fmtD(d.avgMi)+"</div></div>").join("")+"</div>";const spP=hs?"<div class='bkp'><div class='bkh'>Spend by tier</div>"+sBT.map(d=>"<div class='bar'><div class='bl' style='color:"+d.c+"'>"+d.t+"</div><div class='bt'><div class='bf' style='width:"+(totSp?Math.round(d.sp/totSp*100):0)+"%;background:"+d.c+"'></div></div><div class='bn' style='color:"+d.c+"'>"+fmtM(d.sp)+"</div></div>").join("")+"</div>":"<div></div>";const mkP="<div class='bkp'><div class='bkh'>Locations by nearest market</div>"+(mE.map(([m,ls])=>"<div class='bar'><div class='bl'>"+m+"</div><div class='bt'><div class='bf' style='width:"+Math.round(ls.length/mx*100)+"%;background:"+(TC[ls[0].tier]?.hex||'#888')+"'></div></div><div class='bn'>"+ls.length+"</div></div>").join("")||"<div style='color:rgba(255,255,255,.2);font-size:12px'>No data</div>")+"</div>";const sPct=tot?Math.round((c.core+c.adjacent)/tot*100):0;const cdP="<div class='bkp'><div class='bkh'>Coverage distribution</div>"+data.map(d=>"<div class='bar'><div class='bl' style='color:"+d.c+";cursor:pointer' onclick=\\"setF('"+d.t+"')\\">"+d.t+"</div><div class='bt'><div class='bf' style='width:"+Math.round(d.n/tot*100)+"%;background:"+d.c+"'></div></div><div class='bn' style='color:"+d.c+"'>"+d.n+"</div></div>").join("")+"<div style='margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06)'><div style='font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase'>Serviceable today (Core+Adj)</div><div style='font-size:28px;font-weight:700;color:var(--pink2)'>"+sPct+"%</div><div style='font-size:11px;color:rgba(255,255,255,.3);margin-top:2px'>"+(c.core+c.adjacent)+" of "+tot+" locations</div></div></div>";document.getElementById("body").innerHTML=fb+"<div class='bkg'>"+cdP+mkP+"</div><div class='bkg' style='margin-top:14px'>"+distP+spP+"</div>";}
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{curTab=t.dataset.tab;document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===t));rdrTab();}));
+rdrMeta();rdrBar();rdrScs();rdrTab();
+<\/script></body></html>`;
+  const blob=new Blob([html],{type:"text/html;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download=`coverage-report-${safeClient}-${new Date().toISOString().slice(0,10)}.html`;
+  a.click();URL.revokeObjectURL(a.href);
+}
+
+/* ─── Styled multi-sheet workbook download (.xls — opens in Excel/Google Sheets with colors) ─── */
+function dlXls(){
+  const c=cntR(results);const tot=results.length;const totSp=results.reduce((s,r)=>s+(r.spend||0),0);
+  const hasSp=totSp>0;
+  const tierBg={"Core Market":"#D6F5E5","Adjacent Market":"#DCEAFD","Segmented Market":"#D2F2EF","Expansion Market":"#ECDEFB","Out of Coverage":"#FFE9D0","Non-compliant":"#FFD9D9"};
+  const tierFg={"Core Market":"#00734A","Adjacent Market":"#1B5BB8","Segmented Market":"#007D71","Expansion Market":"#6D2BAD","Out of Coverage":"#B85F00","Non-compliant":"#B82929"};
+  const xEsc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const pct=n=>tot?Math.round(n/tot*100):0;
+  const fmtSp=v=>v?"$"+Number(v).toLocaleString():"";
+  // ── Summary sheet ──
+  const summaryRows=[
+    `<Row><Cell ss:MergeAcross="3" ss:StyleID="title"><Data ss:Type="String">Indeed Flex — Coverage Analysis</Data></Cell></Row>`,
+    `<Row><Cell ss:StyleID="kv-k"><Data ss:Type="String">Client</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="String">${xEsc(form.clientName||"")}</Data></Cell><Cell ss:StyleID="kv-k"><Data ss:Type="String">Sales rep</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="String">${form.requester?"@"+xEsc(form.requester):""}</Data></Cell></Row>`,
+    `<Row><Cell ss:StyleID="kv-k"><Data ss:Type="String">Go-live target</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="String">${xEsc(form.goLive||"")}</Data></Cell><Cell ss:StyleID="kv-k"><Data ss:Type="String">Status</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="String">${xEsc(form.clientStatus||"")}</Data></Cell></Row>`,
+    `<Row><Cell ss:StyleID="kv-k"><Data ss:Type="String">Run date</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="String">${new Date().toLocaleString()}</Data></Cell><Cell ss:StyleID="kv-k"><Data ss:Type="String">Total locations</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="Number">${tot}</Data></Cell></Row>`,
+    `<Row></Row>`,
+    `<Row><Cell ss:StyleID="hdr"><Data ss:Type="String">Coverage Tier</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Locations</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">% of total</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Spend ($)</Data></Cell></Row>`,
+  ];
+  [["Core Market",c.core],["Adjacent Market",c.adjacent],["Segmented Market",c.segmented],["Expansion Market",c.expansion],["Out of Coverage",c.outOf],["Non-compliant",c.nonComp]].forEach(([t,n])=>{
+    const sp=results.filter(r=>r.tier===t).reduce((s,r)=>s+(r.spend||0),0);
+    const sid="t-"+t.replace(/[^a-z]/gi,"");
+    summaryRows.push(`<Row><Cell ss:StyleID="${sid}"><Data ss:Type="String">${t}</Data></Cell><Cell ss:StyleID="${sid}-n"><Data ss:Type="Number">${n}</Data></Cell><Cell ss:StyleID="${sid}-p"><Data ss:Type="Number">${pct(n)/100}</Data></Cell><Cell ss:StyleID="${sid}-n"><Data ss:Type="${sp?"Number":"String"}">${sp||""}</Data></Cell></Row>`);
+  });
+  summaryRows.push(`<Row></Row>`,`<Row><Cell ss:StyleID="kv-k"><Data ss:Type="String">Serviceable (Core+Adj) %</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="Number">${pct(c.core+c.adjacent)/100}</Data></Cell><Cell ss:StyleID="kv-k"><Data ss:Type="String">Total temp spend</Data></Cell><Cell ss:StyleID="kv-v"><Data ss:Type="${totSp?"Number":"String"}">${totSp||""}</Data></Cell></Row>`);
+
+  // ── Locations sheet ──
+  const locRows=[`<Row><Cell ss:StyleID="hdr"><Data ss:Type="String">Address</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Tier</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Nearest Core Market</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Distance (mi)</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">ZIP</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Lat</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Lon</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Support Model</Data></Cell>${hasSp?'<Cell ss:StyleID="hdr"><Data ss:Type="String">Spend ($)</Data></Cell>':""}</Row>`];
+  results.forEach(r=>{
+    const sid="row-"+(r.tier||"x").replace(/[^a-z]/gi,"");
+    const sm=TC[r.tier]?TC[r.tier].model:"";
+    const dist=r.nearestMi!=null?Math.round(r.nearestMi):"";
+    locRows.push(`<Row><Cell ss:StyleID="${sid}"><Data ss:Type="String">${xEsc(r.addr||"")}</Data></Cell><Cell ss:StyleID="${sid}-b"><Data ss:Type="String">${xEsc(r.tier||"")}</Data></Cell><Cell ss:StyleID="${sid}"><Data ss:Type="String">${xEsc(r.nearestMarket||r.market||"")}</Data></Cell><Cell ss:StyleID="${sid}-n"><Data ss:Type="${dist===""?"String":"Number"}">${dist}</Data></Cell><Cell ss:StyleID="${sid}"><Data ss:Type="String">${xEsc(r.zip||"")}</Data></Cell><Cell ss:StyleID="${sid}-n"><Data ss:Type="${r.lat?"Number":"String"}">${r.lat||""}</Data></Cell><Cell ss:StyleID="${sid}-n"><Data ss:Type="${r.lon?"Number":"String"}">${r.lon||""}</Data></Cell><Cell ss:StyleID="${sid}"><Data ss:Type="String">${xEsc(sm)}</Data></Cell>${hasSp?`<Cell ss:StyleID="${sid}-n"><Data ss:Type="${r.spend?"Number":"String"}">${r.spend||""}</Data></Cell>`:""}</Row>`);
+  });
+
+  // ── Market breakdown sheet ──
+  const byM={};results.forEach(r=>{const m=r.nearestMarket||r.market;if(m){(byM[m]=byM[m]||[]).push(r);}});
+  const mE=Object.entries(byM).sort((a,b)=>b[1].length-a[1].length);
+  const mRows=[`<Row><Cell ss:StyleID="hdr"><Data ss:Type="String">Market</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Locations</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Tiers</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Spend ($)</Data></Cell></Row>`];
+  mE.forEach(([m,ls])=>{
+    const tiers=[...new Set(ls.map(r=>r.tier))].join(", ");
+    const sp=ls.reduce((s,r)=>s+(r.spend||0),0);
+    mRows.push(`<Row><Cell ss:StyleID="cell"><Data ss:Type="String">${xEsc(m)}</Data></Cell><Cell ss:StyleID="cell-n"><Data ss:Type="Number">${ls.length}</Data></Cell><Cell ss:StyleID="cell"><Data ss:Type="String">${xEsc(tiers)}</Data></Cell><Cell ss:StyleID="cell-n"><Data ss:Type="${sp?"Number":"String"}">${sp||""}</Data></Cell></Row>`);
+  });
+
+  // ── Compose styles ──
+  const tierStyles=Object.entries(tierBg).map(([t,bg])=>{
+    const fg=tierFg[t];const sid="t-"+t.replace(/[^a-z]/gi,"");const rid="row-"+t.replace(/[^a-z]/gi,"");
+    return `
+<Style ss:ID="${sid}"><Font ss:Color="${fg}" ss:Bold="1"/><Interior ss:Color="${bg}" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Color="#FFFFFF"/></Borders></Style>
+<Style ss:ID="${sid}-n"><Font ss:Color="${fg}" ss:Bold="1"/><Interior ss:Color="${bg}" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0"/><Alignment ss:Horizontal="Right"/></Style>
+<Style ss:ID="${sid}-p"><Font ss:Color="${fg}" ss:Bold="1"/><Interior ss:Color="${bg}" ss:Pattern="Solid"/><NumberFormat ss:Format="0%"/><Alignment ss:Horizontal="Right"/></Style>
+<Style ss:ID="${rid}"><Interior ss:Color="${bg}" ss:Pattern="Solid"/></Style>
+<Style ss:ID="${rid}-b"><Font ss:Color="${fg}" ss:Bold="1"/><Interior ss:Color="${bg}" ss:Pattern="Solid"/></Style>
+<Style ss:ID="${rid}-n"><Interior ss:Color="${bg}" ss:Pattern="Solid"/><Alignment ss:Horizontal="Right"/><NumberFormat ss:Format="#,##0.####"/></Style>`;
+  }).join("");
+
+  const xml=`<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">
+<DocumentProperties xmlns="urn:schemas-microsoft-com:office:office"><Title>Coverage Analysis — ${xEsc(form.clientName||"")}</Title><Author>Indeed Flex Coverage Tool</Author><Created>${new Date().toISOString()}</Created></DocumentProperties>
+<Styles>
+<Style ss:ID="Default" ss:Name="Normal"><Font ss:FontName="Calibri" ss:Size="11"/><Alignment ss:Vertical="Center"/></Style>
+<Style ss:ID="title"><Font ss:FontName="Calibri" ss:Size="16" ss:Bold="1" ss:Color="#E8175D"/></Style>
+<Style ss:ID="hdr"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1A0533" ss:Pattern="Solid"/><Alignment ss:Horizontal="Left"/></Style>
+<Style ss:ID="kv-k"><Font ss:Bold="1" ss:Color="#666666"/></Style>
+<Style ss:ID="kv-v"><Font ss:Bold="1"/></Style>
+<Style ss:ID="cell"></Style>
+<Style ss:ID="cell-n"><Alignment ss:Horizontal="Right"/><NumberFormat ss:Format="#,##0.####"/></Style>
+${tierStyles}
+</Styles>
+<Worksheet ss:Name="Summary"><Table>
+<Column ss:Width="160"/><Column ss:Width="100"/><Column ss:Width="100"/><Column ss:Width="100"/>
+${summaryRows.join("\n")}
+</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>6</SplitHorizontal><TopRowBottomPane>6</TopRowBottomPane></WorksheetOptions></Worksheet>
+<Worksheet ss:Name="Locations"><Table>
+<Column ss:Width="220"/><Column ss:Width="130"/><Column ss:Width="140"/><Column ss:Width="90"/><Column ss:Width="65"/><Column ss:Width="75"/><Column ss:Width="75"/><Column ss:Width="200"/>${hasSp?'<Column ss:Width="90"/>':""}
+${locRows.join("\n")}
+</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane></WorksheetOptions></Worksheet>
+<Worksheet ss:Name="Markets"><Table>
+<Column ss:Width="180"/><Column ss:Width="90"/><Column ss:Width="280"/><Column ss:Width="100"/>
+${mRows.join("\n")}
+</Table></Worksheet>
+</Workbook>`;
+  const blob=new Blob([xml],{type:"application/vnd.ms-excel"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  const safe=(form.clientName||"analysis").replace(/[^a-zA-Z0-9-]/g,"-").toLowerCase();
+  a.download=`coverage-${safe}-${new Date().toISOString().slice(0,10)}.xls`;
+  a.click();URL.revokeObjectURL(a.href);
+}
 </script>
 </body>
 </html>

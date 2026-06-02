@@ -303,6 +303,53 @@ app.get("/api/status", (req, res) => {
   });
 });
 
+// Forward analysis log to an external Google Apps Script "doPost" web app, if configured.
+// Set SHEETS_WEBHOOK_URL on Render to make every analysis append a row to a Google Sheet
+// (deploy https://script.google.com web app, paste URL into env var). Failures are non-fatal.
+function forwardToSheetWebhook(entry) {
+  const url = process.env.SHEETS_WEBHOOK_URL;
+  if (!url) return;
+  try {
+    const u = new URL(url);
+    const body = JSON.stringify({
+      date: entry.serverTimestamp || new Date().toISOString(),
+      salesRep: entry.requester || "",
+      clientName: entry.clientName || "",
+      clientStatus: entry.clientStatus || "",
+      goLive: entry.goLive || "",
+      total: entry.total || 0,
+      core: entry.core || 0,
+      adjacent: entry.adjacent || 0,
+      segmented: entry.segmented || 0,
+      expansion: entry.expansion || 0,
+      outOf: entry.outOf || 0,
+      nonComp: entry.nonComp || 0,
+      totalSpend: entry.totalSpend || 0,
+      serviceablePct: entry.total ? Math.round(((entry.core || 0) + (entry.adjacent || 0)) / entry.total * 100) : 0,
+      analysisId: entry.id || "",
+    });
+    const opts = {
+      method: "POST",
+      hostname: u.hostname,
+      path: u.pathname + u.search,
+      headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) },
+    };
+    const client = u.protocol === "https:" ? https : http;
+    const req = client.request(opts, (resp) => {
+      // Apps Script returns 302 → follow once
+      if (resp.statusCode === 302 && resp.headers.location) {
+        client.get(resp.headers.location, () => {}).on("error", () => {});
+      }
+      resp.on("data", () => {}); resp.on("end", () => {});
+    });
+    req.on("error", (err) => console.log("  ⚠ Sheet webhook error:", err.message));
+    req.write(body);
+    req.end();
+  } catch (err) {
+    console.log("  ⚠ Sheet webhook setup error:", err.message);
+  }
+}
+
 app.post("/api/log", (req, res) => {
   try {
     const logsDir = path.join(__dirname, "logs");
@@ -314,11 +361,89 @@ app.post("/api/log", (req, res) => {
     };
     const filename = `${new Date().toISOString().replace(/[:.]/g, "-")}_${(entry.clientName || "unknown").replace(/[^a-zA-Z0-9]/g, "_")}.json`;
     fs.writeFileSync(path.join(logsDir, filename), JSON.stringify(entry, null, 2));
-    res.json({ saved: true, filename });
+    // Best-effort: forward to a Google Sheets Apps Script webhook (if configured).
+    forwardToSheetWebhook(entry);
+    res.json({ saved: true, filename, forwarded: !!process.env.SHEETS_WEBHOOK_URL });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Lightweight summary of all logs (no per-location results) — used by the All Analyses page.
+app.get("/api/logs/summary", (req, res) => {
+  try {
+    const logsDir = path.join(__dirname, "logs");
+    if (!fs.existsSync(logsDir)) return res.json([]);
+    const files = fs.readdirSync(logsDir).filter(f => f.endsWith(".json")).sort().reverse();
+    const out = files.map(f => {
+      try {
+        const e = JSON.parse(fs.readFileSync(path.join(logsDir, f), "utf8"));
+        return {
+          filename: f,
+          id: e.id || null,
+          date: e.serverTimestamp || e.date || null,
+          displayDate: e.date || "",
+          salesRep: e.requester || "",
+          clientName: e.clientName || "",
+          clientStatus: e.clientStatus || "",
+          goLive: e.goLive || "",
+          total: e.total || 0,
+          core: e.core || 0,
+          adjacent: e.adjacent || 0,
+          segmented: e.segmented || 0,
+          expansion: e.expansion || 0,
+          outOf: e.outOf || 0,
+          nonComp: e.nonComp || 0,
+          totalSpend: e.totalSpend || 0,
+          serviceablePct: e.total ? Math.round(((e.core || 0) + (e.adjacent || 0)) / e.total * 100) : 0,
+        };
+      } catch (_) { return { filename: f, error: true }; }
+    });
+    res.json(out);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// CSV export of all logged analyses (one row per analysis), for import into Google Sheets/Excel.
+app.get("/api/logs.csv", (req, res) => {
+  try {
+    const logsDir = path.join(__dirname, "logs");
+    const header = ["Date","Sales Rep","Client","Client Status","Go-Live","Total Locations","Core","Adjacent","Segmented","Expansion","Out of Coverage","Non-compliant","Serviceable %","Total Spend ($)","Analysis ID"];
+    const lines = [header.map(q).join(",")];
+    if (fs.existsSync(logsDir)) {
+      const files = fs.readdirSync(logsDir).filter(f => f.endsWith(".json")).sort().reverse();
+      for (const f of files) {
+        try {
+          const e = JSON.parse(fs.readFileSync(path.join(logsDir, f), "utf8"));
+          const svc = e.total ? Math.round(((e.core || 0) + (e.adjacent || 0)) / e.total * 100) : 0;
+          lines.push([
+            e.serverTimestamp || e.date || "",
+            e.requester || "",
+            e.clientName || "",
+            e.clientStatus || "",
+            e.goLive || "",
+            e.total || 0, e.core || 0, e.adjacent || 0, e.segmented || 0, e.expansion || 0, e.outOf || 0, e.nonComp || 0,
+            svc, e.totalSpend || 0, e.id || ""
+          ].map(q).join(","));
+        } catch (_) {}
+      }
+    }
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="flex-coverage-history-${new Date().toISOString().slice(0,10)}.csv"`);
+    res.send(lines.join("\n"));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Tiny CSV-escape helper for the routes above.
+function q(v) {
+  if (v == null) return "";
+  const s = String(v);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
 
 app.get("/api/logs", (req, res) => {
   try {
