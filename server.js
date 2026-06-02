@@ -66,12 +66,17 @@ function parseRedashCSV(csv) {
     return { territories: {}, states: new Set() };
   }
 
-  // Map Redash MARKET_COVERAGE values to our tier codes
+  // Map Redash MARKET_COVERAGE values to our tier codes.
+  // We keep all six tiers (including OOC and NC) so that ZIP-level classification
+  // wins over the coarser state-level fallback — important when a compliant state
+  // contains a mix of OOC and NC ZIPs (e.g. PA, OH, TX).
   const tierMap = {
     "CORE MARKET": "core",
     "ADJACENT MARKET": "adj",
     "SEGMENTED MARKET": "seg",
     "EXPANSION MARKET": "exp",
+    "OUT OF COVERAGE": "ooc",
+    "NON-COMPLIANT": "nc",
   };
 
   const territories = {};
@@ -167,8 +172,8 @@ function loadLocalTerritories() {
     const lat = iLat >= 0 ? parseFloat(clean[iLat]) : NaN;
     const lng = iLng >= 0 ? parseFloat(clean[iLng]) : NaN;
 
-    // Only store entries the classifier knows about
-    if (!["core","adj","seg","exp"].includes(tier)) continue;
+    // Keep all six tiers so per-ZIP lookup wins over coarse state fallback
+    if (!["core","adj","seg","exp","ooc","nc"].includes(tier)) continue;
 
     const entry = { market, type: tier };
     if (Number.isFinite(lat) && Number.isFinite(lng)) {

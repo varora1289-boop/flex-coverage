@@ -398,6 +398,13 @@ function nearestCoreHub(lat,lon){
 }
 function fmtDist(mi){if(mi==null)return"—";if(mi<1)return"<1 mi";if(mi<100)return Math.round(mi)+" mi";return Math.round(mi).toLocaleString()+" mi";}
 
+const STA=new Set(["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC"]);
+// Full state names → 2-letter codes, so users can paste "Ohio" or "New Jersey"
+const STATE_NAMES={"alabama":"AL","alaska":"AK","arizona":"AZ","arkansas":"AR","california":"CA","colorado":"CO","connecticut":"CT","delaware":"DE","district of columbia":"DC","washington dc":"DC","florida":"FL","georgia":"GA","hawaii":"HI","idaho":"ID","illinois":"IL","indiana":"IN","iowa":"IA","kansas":"KS","kentucky":"KY","louisiana":"LA","maine":"ME","maryland":"MD","massachusetts":"MA","michigan":"MI","minnesota":"MN","mississippi":"MS","missouri":"MO","montana":"MT","nebraska":"NE","nevada":"NV","new hampshire":"NH","new jersey":"NJ","new mexico":"NM","new york":"NY","north carolina":"NC","north dakota":"ND","ohio":"OH","oklahoma":"OK","oregon":"OR","pennsylvania":"PA","rhode island":"RI","south carolina":"SC","south dakota":"SD","tennessee":"TN","texas":"TX","utah":"UT","vermont":"VT","virginia":"VA","washington":"WA","west virginia":"WV","wisconsin":"WI","wyoming":"WY","puerto rico":"PR"};
+function normState(s){if(!s)return"";const t=String(s).trim();if(STA.has(t.toUpperCase()))return t.toUpperCase();const k=t.toLowerCase().replace(/[^a-z\s]/g,"").replace(/\s+/g," ").trim();return STATE_NAMES[k]||"";}
+// Cell-level ZIP detector — accepts 4-digit (NJ/ME/MA leading-zero), 5-digit, or ZIP+4
+function cellZip(t){if(t==null)return"";const s=String(t).trim();if(/^\d{5}-\d{4}$/.test(s))return s.slice(0,5);if(/^\d{5}$/.test(s))return s;if(/^\d{4}$/.test(s))return"0"+s;return"";}
+
 function classify(lat,lon,zip,state){
   const nz=String(zip||"").replace(/\D/g,"").padStart(5,"0");
   if(nz.length===5&&ZM[nz]){
@@ -406,18 +413,21 @@ function classify(lat,lon,zip,state){
     if(t==="adj") return{tier:"Adjacent Market",market:m};
     if(t==="exp") return{tier:"Expansion Market",market:m};
     if(t==="seg") return{tier:"Segmented Market",market:m};
+    if(t==="ooc") return{tier:"Out of Coverage",market:null};
+    if(t==="nc")  return{tier:"Non-compliant",market:null};
   }
   // ZIP not in any territory list — use state-based fallback
-  const st=(state||"").toUpperCase().trim();
+  const st=normState(state);
   if(st&&OOC_STATES.has(st)) return{tier:"Out of Coverage",market:null};
   return{tier:"Non-compliant",market:null};
 }
-
-const STA=new Set(["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC"]);
 const HR=/^(address|city|state|zip|postal|name|location|street|full|site|store|branch|spend|revenue|amount|budget|volume|annualspend|tempspend|totalspend)$/i;
 function isH(p){return p.some(x=>HR.test(x.trim().replace(/[^a-z]/gi,"")))}
-function eZip(s){const m=String(s).match(/\b(\d{5})(?:-\d{4})?\b/g);return m?m[m.length-1].slice(0,5):""}
+// Find any ZIP-like substring (5-digit, ZIP+4, or 4-digit-with-implied-leading-zero) anywhere in a string
+function eZip(s){const t=String(s);const m5=t.match(/\b(\d{5})(?:-\d{4})?\b/g);if(m5)return m5[m5.length-1].slice(0,5);const m4=t.match(/(?<!\d)(\d{4})(?!\d)/g);if(m4)return m4[m4.length-1].padStart(5,"0");return"";}
 function pMoney(s){if(!s)return 0;const n=parseFloat(String(s).replace(/[$,\s]/g,""));return isNaN(n)?0:n;}
+// Try to find a full state name anywhere in a free-text line and return its 2-letter code
+function findStateInText(s){const t=String(s||"");const codeMatch=t.match(new RegExp("\\b("+[...STA].join("|")+")\\b","i"));if(codeMatch)return codeMatch[1].toUpperCase();const low=t.toLowerCase();let best="",bestLen=0;for(const name in STATE_NAMES){const re=new RegExp("\\b"+name.replace(/\s/g,"\\s+")+"\\b","i");if(re.test(low)&&name.length>bestLen){best=STATE_NAMES[name];bestLen=name.length;}}return best;}
 function smartParse(raw){
   const t=raw.trim();if(!t)return[];
   const ls=t.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
@@ -427,12 +437,30 @@ function smartParse(raw){
     const hi=isH(all[0]);const data=hi?all.slice(1):all;
     const hs=hi?all[0].map(h=>h.toLowerCase().replace(/[^a-z0-9]/g,"")):null;
     return data.filter(r=>r.some(c=>c.trim())).map(vals=>{
-      if(hs){const row={};hs.forEach((h,i)=>row[h]=vals[i]||"");const zip=row.zip||row.zipcode||row.postalcode||eZip(vals.join(" "));const city=row.city||"";const st=row.state||row.statecode||row.st||"";const addr=row.fulladdress||row.address||row.street||row.location||"";const spRaw=row.spend||row.revenue||row.amount||row.budget||row.volume||row.annualspend||row.tempspend||row.totalspend||"";return{addr:addr||[city,st,zip].filter(Boolean).join(" "),zip,state:st,spend:pMoney(spRaw)};}
-      const z5=vals.find(v=>/^\d{5}$/.test(v.trim()))||"";const stv=vals.find(v=>STA.has(v.trim().toUpperCase()))||"";const spv=vals.find(v=>/^\$?[\d,]+\.?\d*$/.test(v.trim().replace(/^\$/,""))&&v.trim()!==z5)||"";const zip=z5||eZip(vals.join(" "));const city=vals.filter(v=>v!==z5&&v!==stv&&v!==spv).join(" ").trim();
+      if(hs){
+        const row={};hs.forEach((h,i)=>row[h]=vals[i]||"");
+        const zipRaw=row.zip||row.zipcode||row.postalcode||"";
+        const zip=cellZip(zipRaw)||eZip(vals.join(" "));
+        const city=row.city||"";
+        const stRaw=row.state||row.statecode||row.st||"";
+        const stv=normState(stRaw);
+        const addr=row.fulladdress||row.address||row.street||row.location||"";
+        const spRaw=row.spend||row.revenue||row.amount||row.budget||row.volume||row.annualspend||row.tempspend||row.totalspend||"";
+        return{addr:addr||[city,stv||stRaw,zip].filter(Boolean).join(" "),zip,state:stv,spend:pMoney(spRaw)};
+      }
+      // Non-header structured row — detect ZIP / state / spend by content, in that order,
+      // so a 4-digit ZIP like "7201" (NJ) doesn't get misread as a $7,201 spend.
+      const used=new Array(vals.length).fill(false);
+      let z5="",stv="",spv="";
+      for(let k=0;k<vals.length;k++){if(z5)break;const z=cellZip(vals[k]);if(z){z5=z;used[k]=true;}}
+      for(let k=0;k<vals.length;k++){if(stv||used[k])continue;const s=normState(vals[k]);if(s){stv=s;used[k]=true;}}
+      for(let k=0;k<vals.length;k++){if(used[k])continue;const tt=(vals[k]||"").trim();if(/^\$?[\d,]+\.?\d*$/.test(tt.replace(/^\$/,""))){spv=tt;used[k]=true;break;}}
+      const zip=z5||eZip(vals.join(" "));
+      const city=vals.filter((v,k)=>!used[k]).join(" ").trim();
       return{addr:[city,stv,z5].filter(Boolean).join(" ")||vals.join(" "),zip,state:stv,spend:pMoney(spv)};
     });
   }
-  if(ls.some(l=>/\d{5}/.test(l)||STA.has(l.trim().toUpperCase())))return ls.map(l=>{const st=(l.match(new RegExp("\\b("+[...STA].join("|")+")\\b","i"))||[])[1]||"";const sp=(l.match(/\$[\d,]+\.?\d*/)||[])[0]||"";return{addr:l.replace(/\$[\d,]+\.?\d*/,"").trim(),zip:eZip(l),state:st,spend:pMoney(sp)};});
+  if(ls.some(l=>/\d{4,5}/.test(l)||STA.has(l.trim().toUpperCase())||findStateInText(l)))return ls.map(l=>{const stv=findStateInText(l);const sp=(l.match(/\$[\d,]+\.?\d*/)||[])[0]||"";return{addr:l.replace(/\$[\d,]+\.?\d*/,"").trim(),zip:eZip(l),state:stv,spend:pMoney(sp)};});
   const up=t.toUpperCase().replace(/\s+/g,"");const anc=[];const re=/([A-Z]{2})(\d{5})/g;let m;
   while((m=re.exec(up))!==null)if(STA.has(m[1]))anc.push({i:m.index,s:m[1],z:m[2],e:m.index+m[0].length});
   if(anc.length)return anc.map((a,i)=>{const prev=i===0?0:anc[i-1].e;const city=up.slice(prev,a.i).replace(/[^A-Z]/g,"").slice(-20);return{addr:`${city} ${a.s} ${a.z}`.trim(),zip:a.z,state:a.s,spend:0};});
